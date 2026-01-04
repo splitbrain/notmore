@@ -82,7 +82,8 @@ class MailController extends AbstractController
             throw new HttpException('Missing or invalid part id', 400);
         }
 
-        $query = str_starts_with($messageId, 'id:') ? $messageId : 'id:' . $messageId;
+        // Always enforce an id: query to avoid arbitrary notmuch queries
+        $query = 'id:' . ltrim($messageId, 'id:');
         $client = new ShowClient($this->app);
 
         $metadata = $client->showPartMetadata($query, $part);
@@ -141,7 +142,15 @@ class MailController extends AbstractController
             $message = $entry[0];
             $children = is_array($entry[1] ?? null) ? $entry[1] : [];
 
+            $attachments = $this->collectAttachments($message['body'] ?? []);
             $body = $this->preferredBody($message['body'] ?? []);
+            if ($body['is_html']) {
+                $body['content'] = $this->rewriteCidSources(
+                    (string)$body['content'],
+                    (string)($message['id'] ?? ''),
+                    $attachments
+                );
+            }
 
             $messages[] = [
                 'id' => (string)($message['id'] ?? ''),
@@ -150,7 +159,7 @@ class MailController extends AbstractController
                 'date_relative' => $message['date_relative'] ?? ($message['timestamp'] ?? null),
                 'body' => $body['content'],
                 'body_is_html' => $body['is_html'],
-                'attachments' => $this->collectAttachments($message['body'] ?? []),
+                'attachments' => $attachments,
                 'children' => $this->normalizeMessages($children),
             ];
         }
@@ -206,7 +215,7 @@ class MailController extends AbstractController
      * Collect attachment metadata from body parts (any part with a filename).
      *
      * @param array $parts
-     * @return array<int,array{filename:string,content_type:string,disposition:string,part:int|null}>
+     * @return array<int,array{filename:string,content_type:string,disposition:string,part:int|null,content_id:?string}>
      */
     private function collectAttachments(array $parts): array
     {
@@ -217,12 +226,13 @@ class MailController extends AbstractController
                 continue;
             }
 
-            if (isset($part['filename']) && $part['filename'] !== '') {
+            if ((isset($part['filename']) && $part['filename'] !== '') || isset($part['content-id'])) {
                 $attachments[] = [
                     'filename' => (string)$part['filename'],
                     'content_type' => (string)($part['content-type'] ?? ''),
                     'disposition' => (string)($part['content-disposition'] ?? ''),
                     'part' => isset($part['id']) ? (int)$part['id'] : null,
+                    'content_id' => isset($part['content-id']) ? (string)$part['content-id'] : null,
                 ];
             }
 
@@ -232,6 +242,55 @@ class MailController extends AbstractController
         }
 
         return $attachments;
+    }
+
+    /**
+     * Replace cid: URLs in HTML bodies with links to the attachment endpoint.
+     */
+    private function rewriteCidSources(string $html, string $messageId, array $attachments): string
+    {
+        if ($messageId === '') {
+            return $html;
+        }
+
+        $cidToPart = [];
+        foreach ($attachments as $attachment) {
+            if (!isset($attachment['content_id'], $attachment['part'])) {
+                continue;
+            }
+            $cid = $this->normalizeContentId((string)$attachment['content_id']);
+            if ($cid !== '') {
+                $cidToPart[$cid] = $attachment['part'];
+            }
+        }
+
+        if ($cidToPart === []) {
+            return $html;
+        }
+
+        return (string)preg_replace_callback(
+            '/\\b(src|href)=("|\')cid:([^"\']+)\\2/i',
+            function (array $matches) use ($cidToPart, $messageId): string {
+                $cid = $this->normalizeContentId($matches[3]);
+                if ($cid === '' || !isset($cidToPart[$cid])) {
+                    return $matches[0];
+                }
+
+                $url = '/attachment?id=' . rawurlencode($messageId) . '&part=' . $cidToPart[$cid];
+                return $matches[1] . '=' . $matches[2] . $url . $matches[2];
+            },
+            $html
+        );
+    }
+
+    /**
+     * Normalize a content-id for matching (trim angle brackets, lower-case).
+     */
+    private function normalizeContentId(string $contentId): string
+    {
+        $contentId = trim($contentId);
+        $contentId = trim($contentId, '<>');
+        return strtolower($contentId);
     }
 
     /**

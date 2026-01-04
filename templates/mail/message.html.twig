@@ -6,6 +6,33 @@
         {% if message.tags is defined and message.tags is iterable %}<br><strong>Tags:</strong> {{ message.tags|join(', ')|e }}{% endif %}
     </p>
     {% if message.body %}
-        <pre>{{ message.body|e }}</pre>
+        {% if message.body_is_html %}
+            <div>{{ message.body|raw }}</div>
+        {% else %}
+            <pre>{{ message.body|e }}</pre>
+        {% endif %}
+    {% endif %}
+    {% if message.attachments is defined and message.attachments|length > 0 %}
+        <p><strong>Attachments:</strong></p>
+        <ul>
+        {% for attachment in message.attachments %}
+            <li>
+                {% if attachment.part is not null %}
+                    <a href="/attachment?id={{ message.id|url_encode }}&part={{ attachment.part }}">{{ attachment.filename|e }}</a>
+                {% else %}
+                    {{ attachment.filename|e }}
+                {% endif %}
+                {% set has_type = attachment.content_type is defined and attachment.content_type %}
+                {% set has_disp = attachment.disposition is defined and attachment.disposition %}
+                {% if has_type or has_disp %}
+                    (<span>
+                        {% if has_type %}{{ attachment.content_type|e }}{% endif %}
+                        {% if has_type and has_disp %}, {% endif %}
+                        {% if has_disp %}{{ attachment.disposition|e }}{% endif %}
+                    </span>)
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
     {% endif %}
 </article>
