@@ -1,0 +1,21 @@
+{
+    "name": "splitbrain/notmore",
+    "description": "A web interface for notmuch",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "splitbrain\\notmore\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Andreas Gohr",
+            "email": "andi@splitbrain.org"
+        }
+    ],
+    "require": {},
+    "scripts": {
+        "notmuch": "notmuch --config=./data/notmuch-config"
+    }
+}
