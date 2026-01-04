@@ -35,7 +35,7 @@ class SearchClient extends Client
      * Run a notmuch search and return decoded JSON results.
      *
      * @param string $query Notmuch search expression
-     * @return Thread[]
+     * @return SearchResult[]
      * @throws \Exception when the notmuch command fails or JSON cannot be decoded
      */
     public function search(string $query): array

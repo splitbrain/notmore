@@ -9,7 +9,7 @@
     {% else %}
         <ul class="thread-list">
             {% for thread in threads %}
-                {% set id = thread.thread ?? '' %}
+                {% set id = thread.id ?? '' %}
                 {% set href = id ? '/thread/' ~ id|url_encode : '#' %}
                 <li class="thread">
                     <a class="thread-link" data-thread-id="{{ id|e }}" href="{{ href|e }}">{{ (thread.subject ?? '[no subject]')|e }}</a>
