@@ -13,9 +13,16 @@
                 {% set href = id ? '/thread/' ~ id|url_encode : '#' %}
                 <li class="thread">
                     <a class="thread-link" data-thread-id="{{ id|e }}" href="{{ href|e }}">{{ (thread.subject ?? '[no subject]')|e }}</a>
-                    {% set meta = (thread.authors ?? '') ~ ' ' ~ (thread.date_relative ?? thread.date ?? '') %}
-                    {% if meta|trim %}
-                        <p class="meta">{{ meta|trim|e }}</p>
+                    {% set authors = thread.authors ?? '' %}
+                    {% set date_relative = thread.date_relative ?? '' %}
+                    {% if authors|trim or date_relative %}
+                        <p class="meta">
+                            {% if authors|trim %}{{ authors|trim|e }}{% endif %}
+                            {% if authors|trim and date_relative %} {% endif %}
+                            {% if date_relative %}
+                                <time datetime="{{ thread.timestamp|date('c') }}" title="{{ thread.timestamp|date('r') }}">{{ date_relative|e }}</time>
+                            {% endif %}
+                        </p>
                     {% endif %}
                     {% if thread.tags is defined and thread.tags is iterable %}
                         <span class="tags">

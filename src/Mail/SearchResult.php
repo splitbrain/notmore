@@ -11,8 +11,8 @@ readonly class SearchResult
     public ?string $subject;
     public ?string $authors;
     public array $tags;
-    public int|string|null $date_relative;
-    public int|string|null $date;
+    public int $timestamp;
+    public string $date_relative;
 
     /**
      * Construct an immutable search result representing a notmuch thread summary.
@@ -21,24 +21,24 @@ readonly class SearchResult
      * @param string|null $subject Thread subject (if present in the search row)
      * @param string|null $authors Authors string provided by notmuch
      * @param array $tags Tag list for the thread
-     * @param int|string|null $dateRelative Human readable relative date (if available)
-     * @param int|string|null $date Absolute date (if available)
+     * @param int $timestamp Unix timestamp (seconds)
+     * @param string $dateRelative Human readable relative date
      */
     private function __construct(
         string $id,
         ?string $subject,
         ?string $authors,
         array $tags,
-        int|string|null $dateRelative,
-        int|string|null $date
+        int $timestamp,
+        string $dateRelative
     )
     {
         $this->id = $id;
         $this->subject = $subject;
         $this->authors = $authors;
         $this->tags = $tags;
+        $this->timestamp = $timestamp;
         $this->date_relative = $dateRelative;
-        $this->date = $date;
     }
 
     /**
@@ -53,9 +53,9 @@ readonly class SearchResult
         $id = (string)($payload['thread'] ?? '');
         $authors = (string)($payload['authors'] ?? null);
         $tags = $payload['tags'] ?? [];
-        $dateRelative = $payload['date_relative'] ?? null;
-        $date = $payload['date'] ?? null;
+        $timestamp = (int)($payload['timestamp'] ?? 0);
+        $dateRelative = (string)($payload['date_relative'] ?? '');
 
-        return new self($id, $subject, $authors, $tags, $dateRelative, $date);
+        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative);
     }
 }

@@ -10,7 +10,8 @@ readonly class Message
     public string $id;
     public array $headers;
     public array $tags;
-    public int|string|null $date_relative;
+    public int $timestamp;
+    public string $date_relative;
     public ?string $body;
     public bool $body_is_html;
     /** @var Attachment[] */
@@ -24,7 +25,8 @@ readonly class Message
      * @param string $id Message id
      * @param array $headers Raw headers array from notmuch
      * @param array $tags Tag list for the message
-     * @param int|string|null $dateRelative Relative date or timestamp
+     * @param int $timestamp Unix timestamp (seconds)
+     * @param string $dateRelative Human readable relative date
      * @param string|null $body Preferred body content
      * @param bool $bodyIsHtml True when body contains HTML
      * @param Attachment[] $attachments Collected attachments for this message
@@ -34,7 +36,8 @@ readonly class Message
         string $id,
         array $headers,
         array $tags,
-        int|string|null $dateRelative,
+        int $timestamp,
+        string $dateRelative,
         ?string $body,
         bool $bodyIsHtml,
         array $attachments,
@@ -43,6 +46,7 @@ readonly class Message
         $this->id = $id;
         $this->headers = $headers;
         $this->tags = $tags;
+        $this->timestamp = $timestamp;
         $this->date_relative = $dateRelative;
         $this->body = $body;
         $this->body_is_html = $bodyIsHtml;
@@ -83,7 +87,8 @@ readonly class Message
             (string)($message['id'] ?? ''),
             (array)($message['headers'] ?? []),
             (array)($message['tags'] ?? []),
-            $message['date_relative'] ?? ($message['timestamp'] ?? null),
+            (int)($message['timestamp'] ?? 0),
+            (string)($message['date_relative'] ?? ''),
             $body['content'],
             $body['is_html'],
             $attachments,
