@@ -17,6 +17,7 @@ class ShowClient extends Client
             'show',
             '--format=json',
             '--entire-thread=true',
+            '--include-html',
             $query
         ];
 

@@ -3,10 +3,48 @@
 namespace splitbrain\notmore\Controller;
 
 use splitbrain\notmore\App;
+use Twig\Environment;
+use Twig\Loader\FilesystemLoader;
 
 abstract class AbstractController
 {
+    private ?Environment $twig = null;
+
     public function __construct(protected App $app)
     {
+    }
+
+    /**
+     * Escape HTML output.
+     */
+    protected function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * Render a Twig template.
+     */
+    protected function render(string $template, array $context = []): string
+    {
+        return $this->twig()->render($template, $context);
+    }
+
+    /**
+     * Build or reuse the Twig environment.
+     */
+    protected function twig(): Environment
+    {
+        if ($this->twig instanceof Environment) {
+            return $this->twig;
+        }
+
+        $loader = new FilesystemLoader(__DIR__ . '/../../templates');
+        $this->twig = new Environment($loader, [
+            'debug' => (bool)($_ENV['DEBUG'] ?? false),
+            'strict_variables' => true,
+        ]);
+
+        return $this->twig;
     }
 }

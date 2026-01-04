@@ -1,0 +1,10 @@
+<ul>
+    {% for message in messages %}
+        <li>
+            {% include 'mail/message.html.twig' with {'message': message} %}
+            {% if message.children %}
+                {% include 'mail/thread_messages.html.twig' with {'messages': message.children} %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

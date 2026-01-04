@@ -1,0 +1,31 @@
+<div class="search-results">
+    <header>
+        <h2>Search: {{ query|e }}</h2>
+        <p class="hint">Showing {{ threads|length }} thread(s){% if offset %} starting at {{ offset }}{% endif %}</p>
+    </header>
+
+    {% if threads is empty %}
+        <p class="muted">No threads matched.</p>
+    {% else %}
+        <ul class="thread-list">
+            {% for thread in threads %}
+                {% set id = thread.thread ?? '' %}
+                {% set href = id ? '/thread/' ~ id|url_encode : '#' %}
+                <li class="thread">
+                    <a class="thread-link" data-thread-id="{{ id|e }}" href="{{ href|e }}">{{ (thread.subject ?? '[no subject]')|e }}</a>
+                    {% set meta = (thread.authors ?? '') ~ ' ' ~ (thread.date_relative ?? thread.date ?? '') %}
+                    {% if meta|trim %}
+                        <p class="meta">{{ meta|trim|e }}</p>
+                    {% endif %}
+                    {% if thread.tags is defined and thread.tags is iterable %}
+                        <span class="tags">
+                            {% for tag in thread.tags %}
+                                <span class="pill">{{ tag|e }}</span>
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>

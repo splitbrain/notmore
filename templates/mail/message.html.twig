@@ -1,0 +1,11 @@
+<article>
+    <h3>{{ message.headers.Subject|default('[no subject]')|e }}</h3>
+    <p>
+        <strong>From:</strong> {{ message.headers.From|default('')|e }}
+        {% if message.headers.Date is defined %}<br><strong>Date:</strong> {{ message.headers.Date|e }}{% endif %}
+        {% if message.tags is defined and message.tags is iterable %}<br><strong>Tags:</strong> {{ message.tags|join(', ')|e }}{% endif %}
+    </p>
+    {% if message.body %}
+        <pre>{{ message.body|e }}</pre>
+    {% endif %}
+</article>

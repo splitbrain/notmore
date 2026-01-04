@@ -4,8 +4,8 @@ namespace splitbrain\notmore\Controller;
 
 class HomeController extends AbstractController
 {
-    public function index(): void
+    public function index(array $data = []): string
     {
-        echo 'Hello World';
+        return $this->render('home/index.html.twig');
     }
 }

@@ -1,0 +1,12 @@
+<div>
+    <h2>Thread {{ threadId|e }}</h2>
+    {% if subject %}
+        <p>{{ subject|e }}</p>
+    {% endif %}
+
+    {% if messages is empty %}
+        <p>No messages available.</p>
+    {% else %}
+        {% include 'mail/thread_messages.html.twig' with {'messages': messages} %}
+    {% endif %}
+</div>
