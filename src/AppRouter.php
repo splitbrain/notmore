@@ -21,6 +21,7 @@ class AppRouter extends Router
         $this->alto->map('GET', '/', [HomeController::class, 'index']);
         $this->alto->map('GET', '/search', [MailController::class, 'search']);
         $this->alto->map('GET', '/thread/[t:thread]', [MailController::class, 'thread']);
+        $this->alto->map('GET', '/attachment', [MailController::class, 'attachment']);
     }
 
     protected function onPreflight(): void

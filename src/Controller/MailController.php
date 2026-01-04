@@ -64,10 +64,54 @@ class MailController extends AbstractController
     }
 
     /**
+     * Stream a single attachment (by part id) directly to the client.
+     *
+     * @param array $data expects:
+     *  - id: string, required; message id (with or without id: prefix)
+     *  - part: int >= 0, required; part id reported by notmuch
+     */
+    public function attachment(array $data): ?string
+    {
+        $messageId = trim((string)($data['id'] ?? ''));
+        if ($messageId === '') {
+            throw new HttpException('Missing message id', 400);
+        }
+
+        $part = (int)($data['part'] ?? -1);
+        if ($part < 0) {
+            throw new HttpException('Missing or invalid part id', 400);
+        }
+
+        $query = str_starts_with($messageId, 'id:') ? $messageId : 'id:' . $messageId;
+        $client = new ShowClient($this->app);
+
+        $metadata = $client->showPartMetadata($query, $part);
+        $headers = $this->extractPartHeaders($metadata);
+
+        header('Content-Type: ' . $headers['content_type']);
+        if ($headers['filename'] !== null) {
+            header('Content-Disposition: attachment; filename="' . $headers['filename'] . '"');
+        }
+
+        $client->streamPart($query, $part);
+
+        return null;
+    }
+
+    /**
      * Normalize the notmuch thread structure into a simple message/children tree.
      *
      * @param array $payload Raw notmuch show payload.
-     * @return array<array{id:string,headers:array,tags:array,date_relative:mixed,body:?string,children:array}>
+     * @return array<array{
+     *     id:string,
+     *     headers:array,
+     *     tags:array,
+     *     date_relative:mixed,
+     *     body:?string,
+     *     body_is_html:bool,
+     *     attachments:array<int,array{filename:string,content_type:string,disposition:string,part:?int}>,
+     *     children:array
+     * }>
      */
     private function normalizeThread(array $payload): array
     {
@@ -97,12 +141,16 @@ class MailController extends AbstractController
             $message = $entry[0];
             $children = is_array($entry[1] ?? null) ? $entry[1] : [];
 
+            $body = $this->preferredBody($message['body'] ?? []);
+
             $messages[] = [
                 'id' => (string)($message['id'] ?? ''),
                 'headers' => $message['headers'] ?? [],
                 'tags' => $message['tags'] ?? [],
                 'date_relative' => $message['date_relative'] ?? ($message['timestamp'] ?? null),
-                'body' => $this->firstPlainText($message['body'] ?? []),
+                'body' => $body['content'],
+                'body_is_html' => $body['is_html'],
+                'attachments' => $this->collectAttachments($message['body'] ?? []),
                 'children' => $this->normalizeMessages($children),
             ];
         }
@@ -111,21 +159,40 @@ class MailController extends AbstractController
     }
 
     /**
-     * Find the first text/plain body part in a message body list.
+     * Pick a preferred body part (HTML first, then plain text).
      */
-    private function firstPlainText(array $parts): ?string
+    private function preferredBody(array $parts): array
+    {
+        $html = $this->findBodyByMime($parts, 'text/html');
+        if ($html !== null) {
+            return ['content' => $html, 'is_html' => true];
+        }
+
+        $plain = $this->findBodyByMime($parts, 'text/plain');
+        if ($plain !== null) {
+            return ['content' => trim($plain), 'is_html' => false];
+        }
+
+        return ['content' => null, 'is_html' => false];
+    }
+
+    /**
+     * Find the first body part matching the given MIME type.
+     */
+    private function findBodyByMime(array $parts, string $mime): ?string
     {
         foreach ($parts as $part) {
             if (!is_array($part)) {
                 continue;
             }
 
-            if (($part['content-type'] ?? '') === 'text/plain' && isset($part['content'])) {
-                return trim((string)$part['content']);
+            $contentType = strtolower((string)($part['content-type'] ?? ''));
+            if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
+                return (string)$part['content'];
             }
 
             if (isset($part['content']) && is_array($part['content'])) {
-                $found = $this->firstPlainText($part['content']);
+                $found = $this->findBodyByMime($part['content'], $mime);
                 if ($found !== null) {
                     return $found;
                 }
@@ -133,6 +200,55 @@ class MailController extends AbstractController
         }
 
         return null;
+    }
+
+    /**
+     * Collect attachment metadata from body parts (any part with a filename).
+     *
+     * @param array $parts
+     * @return array<int,array{filename:string,content_type:string,disposition:string,part:int|null}>
+     */
+    private function collectAttachments(array $parts): array
+    {
+        $attachments = [];
+
+        foreach ($parts as $part) {
+            if (!is_array($part)) {
+                continue;
+            }
+
+            if (isset($part['filename']) && $part['filename'] !== '') {
+                $attachments[] = [
+                    'filename' => (string)$part['filename'],
+                    'content_type' => (string)($part['content-type'] ?? ''),
+                    'disposition' => (string)($part['content-disposition'] ?? ''),
+                    'part' => isset($part['id']) ? (int)$part['id'] : null,
+                ];
+            }
+
+            if (isset($part['content']) && is_array($part['content'])) {
+                $attachments = array_merge($attachments, $this->collectAttachments($part['content']));
+            }
+        }
+
+        return $attachments;
+    }
+
+    /**
+     * Extract useful headers from part metadata returned by notmuch.
+     */
+    private function extractPartHeaders(array $metadata): array
+    {
+        $contentType = (string)($metadata['content-type'] ?? 'application/octet-stream');
+        $filename = null;
+        if (isset($metadata['filename']) && $metadata['filename'] !== '') {
+            $filename = str_replace(['"', "\r", "\n"], '', (string)$metadata['filename']);
+        }
+
+        return [
+            'content_type' => $contentType,
+            'filename' => $filename,
+        ];
     }
 
     private function extractSubject(array $payload): ?string
