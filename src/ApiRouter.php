@@ -2,6 +2,9 @@
 
 namespace splitbrain\notmore;
 
+use splitbrain\notmore\Controller\AbstractController;
+use splitbrain\notmore\Controller\ApiController;
+
 class ApiRouter extends Router
 {
     protected ?App $app = null;
@@ -16,7 +19,8 @@ class ApiRouter extends Router
     /** @inheritdoc */
     protected function registerRoutes(): void
     {
-        // TODO: Define API routes here
+        $this->alto->map('GET', '/search', [ApiController::class, 'search']);
+        $this->alto->map('GET', '/thread', [ApiController::class, 'thread']);
 
     }
 
@@ -31,7 +35,7 @@ class ApiRouter extends Router
     protected function onMatch(array $match): void
     {
 
-        $app = new App(new ErrorLogLogger($this->isDev() ? 'debug' : 'warning'));
+        $this->app = new App(new ErrorLogLogger($this->isDev() ? 'debug' : 'warning'));
 
         // Parse JSON body for non-GET requests
         $data = [];
@@ -53,7 +57,10 @@ class ApiRouter extends Router
         [$controllerClass, $method] = array_pad($match['target'], 2, null);
 
         // Create the controller instance
-        $controller = new $controllerClass($app);
+        $controller = new $controllerClass($this->app);
+        if (!$controller instanceof AbstractController) {
+            throw new HttpException('Invalid controller', 500);
+        }
 
         // Call the method
         $result = $controller->$method($data);

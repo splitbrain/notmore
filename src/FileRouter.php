@@ -2,10 +2,13 @@
 
 namespace splitbrain\notmore;
 
+use splitbrain\notmore\Controller\AbstractController;
 use splitbrain\notmore\Controller\HomeController;
 
 class FileRouter extends Router
 {
+    protected ?App $app = null;
+
     public function __construct()
     {
         parent::__construct();
@@ -24,8 +27,15 @@ class FileRouter extends Router
 
     protected function onMatch(array $match): void
     {
+        $this->app ??= new App(new ErrorLogLogger($this->isDev() ? 'debug' : 'warning'));
+
         [$controller, $method] = $match['target'];
-        call_user_func_array([new $controller(), $method], $match['params']);
+        $instance = new $controller($this->app);
+        if (!$instance instanceof AbstractController) {
+            throw new HttpException('Invalid controller', 500);
+        }
+
+        call_user_func_array([$instance, $method], $match['params']);
     }
 
     protected function onError(\Exception $e): void

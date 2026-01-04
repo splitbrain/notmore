@@ -2,7 +2,7 @@
 
 namespace splitbrain\notmore\Controller;
 
-class HomeController
+class HomeController extends AbstractController
 {
     public function index(): void
     {

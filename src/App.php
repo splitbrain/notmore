@@ -44,13 +44,14 @@ class App
 
         // Load environment variables from .env file if it exists
         if (file_exists(__DIR__ . '/../.env')) {
-            $dotenv = Dotenv::createUnsafeImmutable(__DIR__ . '/../..');
+            $dotenv = Dotenv::createUnsafeImmutable(__DIR__ . '/../');
+            $dotenv->load();
             $dotenv->required([
                 'NOTMUCH_CONFIG'
             ]);
-            $dotenv->load();
         }
 
+        // Check for notmuch config
         $notmuch_config =  $_ENV['NOTMUCH_CONFIG'];
         if($notmuch_config[0] !== '/') {
             $notmuch_config = __DIR__ . '/../' . $notmuch_config;
@@ -60,9 +61,20 @@ class App
             throw new \RuntimeException('Notmuch config file not found: ' . $notmuch_config);
         }
 
+        // check for notmuch binary (resolve from PATH when no explicit path is given)
+        $notmuch_bin = $_ENV['NOTMUCH_BIN'] ?? 'notmuch';
+        if (!str_contains($notmuch_bin, DIRECTORY_SEPARATOR)) {
+            $notmuch_bin = trim((string)shell_exec('command -v ' . escapeshellarg($notmuch_bin)));
+        }
+
+        if ($notmuch_bin === '' || !is_executable($notmuch_bin)) {
+            throw new \RuntimeException('Notmuch binary not found or not executable: ' . $notmuch_bin);
+        }
+
         // for now only this. We need to read the notmuch config here
         $config = [
-            'notmuch_config' => $_ENV['NOTMUCH_CONFIG'],
+            'notmuch_bin' => $notmuch_bin,
+            'notmuch_config' => $notmuch_config,
         ];
 
         return $config;
