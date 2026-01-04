@@ -61,11 +61,9 @@ class MailController extends AbstractController
         $payload = $client->show('thread:' . $thread);
         $threadEntries = $payload[0] ?? $payload;
         $messages = Message::listFromNotmuchThread($threadEntries);
-        $subject = $this->extractSubjectFromMessages($messages);
 
         return $this->render('mail/thread.html.twig', [
             'threadId' => $thread,
-            'subject' => $subject,
             'messages' => $messages,
         ]);
     }
@@ -102,25 +100,6 @@ class MailController extends AbstractController
         }
 
         $client->streamPart($query, $part);
-
-        return null;
-    }
-
-    /**
-     * Extract the thread subject from the first message, if available.
-     *
-     * @param Message[] $messages
-     */
-    private function extractSubjectFromMessages(array $messages): ?string
-    {
-        if ($messages === []) {
-            return null;
-        }
-
-        $first = $messages[0];
-        if (isset($first->headers['Subject']) && is_string($first->headers['Subject'])) {
-            return $first->headers['Subject'];
-        }
 
         return null;
     }

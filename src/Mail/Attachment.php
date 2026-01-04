@@ -2,27 +2,28 @@
 
 namespace splitbrain\notmore\Mail;
 
-class Attachment
+readonly class Attachment
 {
-    public readonly string $filename;
-    public readonly string $content_type;
-    public readonly string $disposition;
-    public readonly ?int $part;
-    public readonly ?string $content_id;
+    public string $filename;
+    public string $content_type;
+    public string $disposition;
+    public ?int $part;
+    public ?string $content_id;
 
     /**
      * @param string $filename May be empty when not provided by notmuch
      * @param string $contentType MIME type; defaults should be handled by callers
-     * @param string $disposition Content disposition, if any
+     * @param string $disposition Content disposition (inline/attachment)
+     * @param string $contentId Raw content-id
      * @param int|null $part Part id as reported by notmuch
-     * @param string|null $contentId Raw content-id, if present
      */
     public function __construct(
         string $filename,
         string $contentType,
         string $disposition,
-        ?int $part,
-        ?string $contentId
+        string $contentId,
+        ?int $part = null
+
     ) {
         $this->filename = $filename;
         $this->content_type = $contentType;
@@ -34,17 +35,15 @@ class Attachment
     /**
      * Build an Attachment from part metadata returned by notmuch.
      */
-    public static function fromNotmuchPart(array $metadata, ?int $part = null): self
+    public static function fromNotmuchPart(array $metadata, int $part): self
     {
         $contentType = (string)($metadata['content-type'] ?? 'application/octet-stream');
-        $filename = '';
-        if (isset($metadata['filename']) && $metadata['filename'] !== '') {
-            $filename = str_replace(['"', "\r", "\n"], '', (string)$metadata['filename']);
-        }
+        $filename = $metadata['filename'] ?? '';
+        $filename = str_replace(['"', "\r", "\n"], '', (string) $filename);
 
-        $disposition = (string)($metadata['content-disposition'] ?? '');
-        $contentId = isset($metadata['content-id']) ? (string)$metadata['content-id'] : null;
+        $disposition = (string)($metadata['content-disposition'] ?? 'attachment');
+        $contentId = (string)($metadata['content-id'] ?? '');
 
-        return new self($filename, $contentType, $disposition, $part, $contentId);
+        return new self($filename, $contentType, $disposition, $contentId, $part);
     }
 }

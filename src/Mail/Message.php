@@ -2,23 +2,21 @@
 
 namespace splitbrain\notmore\Mail;
 
-use splitbrain\notmore\Mail\Attachment;
-
 /**
  * Normalized message representation built from notmuch show output.
  */
-class Message
+readonly class Message
 {
-    public readonly string $id;
-    public readonly array $headers;
-    public readonly array $tags;
-    public readonly int|string|null $date_relative;
-    public readonly ?string $body;
-    public readonly bool $body_is_html;
+    public string $id;
+    public array $headers;
+    public array $tags;
+    public int|string|null $date_relative;
+    public ?string $body;
+    public bool $body_is_html;
     /** @var Attachment[] */
-    public readonly array $attachments;
+    public array $attachments;
     /** @var Message[] */
-    public readonly array $children;
+    public array $children;
 
     /**
      * Construct an immutable message node with attachments and children.
@@ -60,12 +58,8 @@ class Message
      */
     public static function fromNotmuchEntry(array $entry): ?self
     {
-        if (!isset($entry[0]) || !is_array($entry[0])) {
-            return null;
-        }
-
         $message = $entry[0];
-        $children = is_array($entry[1] ?? null) ? $entry[1] : [];
+        $children = $entry[1] ?? [];
 
         $attachments = self::collectAttachments($message['body'] ?? []);
         $body = self::preferredBody($message['body'] ?? []);
@@ -79,9 +73,6 @@ class Message
 
         $childMessages = [];
         foreach ($children as $childEntry) {
-            if (!is_array($childEntry)) {
-                continue;
-            }
             $child = self::fromNotmuchEntry($childEntry);
             if ($child !== null) {
                 $childMessages[] = $child;
@@ -90,8 +81,8 @@ class Message
 
         return new self(
             (string)($message['id'] ?? ''),
-            $message['headers'] ?? [],
-            $message['tags'] ?? [],
+            (array)($message['headers'] ?? []),
+            (array)($message['tags'] ?? []),
             $message['date_relative'] ?? ($message['timestamp'] ?? null),
             $body['content'],
             $body['is_html'],
@@ -106,17 +97,10 @@ class Message
      * @param mixed $entries notmuch thread entries (array of [message, children] tuples)
      * @return Message[] Flattened list of normalized message roots
      */
-    public static function listFromNotmuchThread(mixed $entries): array
+    public static function listFromNotmuchThread(array $entries): array
     {
-        if (!is_array($entries)) {
-            return [];
-        }
-
         $messages = [];
         foreach ($entries as $entry) {
-            if (!is_array($entry)) {
-                continue;
-            }
             $message = self::fromNotmuchEntry($entry);
             if ($message !== null) {
                 $messages[] = $message;
@@ -150,17 +134,13 @@ class Message
     /**
      * Find the first body part matching the given MIME type.
      *
-     * @param array $parts Body parts array from notmuch
+     * @param array[] $parts Body parts array from notmuch
      * @param string $mime MIME type to search for
      * @return string|null
      */
     private static function findBodyByMime(array $parts, string $mime): ?string
     {
         foreach ($parts as $part) {
-            if (!is_array($part)) {
-                continue;
-            }
-
             $contentType = strtolower((string)($part['content-type'] ?? ''));
             if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
                 return (string)$part['content'];
@@ -180,7 +160,7 @@ class Message
     /**
      * Collect attachment metadata from body parts (any part with a filename or content-id).
      *
-     * @param array $parts Body parts array from notmuch
+     * @param array[] $parts Body parts array from notmuch
      * @return Attachment[]
      */
     private static function collectAttachments(array $parts): array
@@ -188,17 +168,13 @@ class Message
         $attachments = [];
 
         foreach ($parts as $part) {
-            if (!is_array($part)) {
-                continue;
-            }
-
-            if ((isset($part['filename']) && $part['filename'] !== '') || isset($part['content-id'])) {
+            if (($part['filename'] ?? '') !== '' || array_key_exists('content-id', $part)) {
                 $attachments[] = new Attachment(
-                    (string)$part['filename'],
+                    (string)($part['filename'] ?? ''),
                     (string)($part['content-type'] ?? ''),
                     (string)($part['content-disposition'] ?? ''),
-                    isset($part['id']) ? (int)$part['id'] : null,
-                    isset($part['content-id']) ? (string)$part['content-id'] : null
+                    $part['content-id'] ?? null,
+                    isset($part['id']) ? (int)$part['id'] : null
                 );
             }
 
@@ -240,7 +216,7 @@ class Message
         }
 
         return (string)preg_replace_callback(
-            '/\\b(src|href)=("|\')cid:([^"\']+)\\2/i',
+            '/\b(src|href)=(["\'])cid:([^"\']+)\2/i',
             function (array $matches) use ($cidToPart, $messageId): string {
                 $cid = self::normalizeContentId($matches[3]);
                 if ($cid === '' || !isset($cidToPart[$cid])) {

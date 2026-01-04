@@ -1,8 +1,5 @@
 <div>
     <h2>Thread {{ threadId|default('')|e }}</h2>
-    {% if subject %}
-        <p>{{ subject|e }}</p>
-    {% endif %}
 
     {% if messages is empty %}
         <p>No messages available.</p>

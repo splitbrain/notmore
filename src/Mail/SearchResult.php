@@ -5,14 +5,14 @@ namespace splitbrain\notmore\Mail;
 /**
  * Thread metadata as returned by notmuch search results.
  */
-class SearchResult
+readonly class SearchResult
 {
-    public readonly string $id;
-    public readonly ?string $subject;
-    public readonly ?string $authors;
-    public readonly array $tags;
-    public readonly int|string|null $date_relative;
-    public readonly int|string|null $date;
+    public string $id;
+    public ?string $subject;
+    public ?string $authors;
+    public array $tags;
+    public int|string|null $date_relative;
+    public int|string|null $date;
 
     /**
      * Construct an immutable search result representing a notmuch thread summary.
@@ -49,22 +49,10 @@ class SearchResult
      */
     public static function fromNotmuch(array $payload): self
     {
-        $subject = isset($payload['subject']) && is_string($payload['subject'])
-            ? $payload['subject']
-            : null;
-
-        $id = isset($payload['thread']) ? (string)$payload['thread'] : '';
-
-        $authors = null;
-        if (isset($payload['authors'])) {
-            $authors = (string)$payload['authors'];
-        }
-
-        $tags = [];
-        if (isset($payload['tags']) && is_array($payload['tags'])) {
-            $tags = $payload['tags'];
-        }
-
+        $subject = $payload['subject'] ?? null;
+        $id = (string)($payload['thread'] ?? '');
+        $authors = (string)($payload['authors'] ?? null);
+        $tags = $payload['tags'] ?? [];
         $dateRelative = $payload['date_relative'] ?? null;
         $date = $payload['date'] ?? null;
 
