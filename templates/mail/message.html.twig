@@ -10,11 +10,7 @@
         {% if message.tags|length %}<br><strong>Tags:</strong> {{ message.tags|join(', ')|e }}{% endif %}
     </p>
     {% if message.body %}
-        {% if message.body_is_html %}
-            <div>{{ message.body|raw }}</div>
-        {% else %}
-            <pre>{{ message.body|e }}</pre>
-        {% endif %}
+        <div>{{ message.body|raw }}</div>
     {% endif %}
     {% if message.attachments %}
         <p><strong>Attachments:</strong></p>

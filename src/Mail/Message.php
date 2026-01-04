@@ -2,6 +2,10 @@
 
 namespace splitbrain\notmore\Mail;
 
+use Asika\Autolink\Autolink;
+use HTMLPurifier;
+use HTMLPurifier_Config;
+
 /**
  * Normalized message representation built from notmuch show output.
  */
@@ -12,8 +16,8 @@ readonly class Message
     public array $tags;
     public int $timestamp;
     public string $date_relative;
+    /** @var string|null Purified HTML body */
     public ?string $body;
-    public bool $body_is_html;
     /** @var Attachment[] */
     public array $attachments;
     /** @var Message[] */
@@ -27,8 +31,7 @@ readonly class Message
      * @param array $tags Tag list for the message
      * @param int $timestamp Unix timestamp (seconds)
      * @param string $dateRelative Human readable relative date
-     * @param string|null $body Preferred body content
-     * @param bool $bodyIsHtml True when body contains HTML
+     * @param string|null $body Purified HTML body content
      * @param Attachment[] $attachments Collected attachments for this message
      * @param Message[] $children Child message nodes
      */
@@ -39,7 +42,6 @@ readonly class Message
         int $timestamp,
         string $dateRelative,
         ?string $body,
-        bool $bodyIsHtml,
         array $attachments,
         array $children
     ) {
@@ -49,7 +51,6 @@ readonly class Message
         $this->timestamp = $timestamp;
         $this->date_relative = $dateRelative;
         $this->body = $body;
-        $this->body_is_html = $bodyIsHtml;
         $this->attachments = $attachments;
         $this->children = $children;
     }
@@ -66,14 +67,11 @@ readonly class Message
         $children = $entry[1] ?? [];
 
         $attachments = self::collectAttachments($message['body'] ?? []);
-        $body = self::preferredBody($message['body'] ?? []);
-        if ($body['is_html']) {
-            $body['content'] = self::rewriteCidSources(
-                (string)$body['content'],
-                (string)($message['id'] ?? ''),
-                $attachments
-            );
-        }
+        $body = self::preferredBodyHtml(
+            $message['body'] ?? [],
+            (string)($message['id'] ?? ''),
+            $attachments
+        );
 
         $childMessages = [];
         foreach ($children as $childEntry) {
@@ -89,8 +87,7 @@ readonly class Message
             (array)($message['tags'] ?? []),
             (int)($message['timestamp'] ?? 0),
             (string)($message['date_relative'] ?? ''),
-            $body['content'],
-            $body['is_html'],
+            $body,
             $attachments,
             $childMessages
         );
@@ -116,24 +113,28 @@ readonly class Message
     }
 
     /**
-     * Pick a preferred body part (HTML first, then plain text).
+     * Pick a preferred body part and return purified HTML (HTML preferred, then converted text).
      *
      * @param array $parts Body parts array from notmuch
-     * @return array{content:?string,is_html:bool}
+     * @param string $messageId Message id
+     * @param Attachment[] $attachments Collected attachments for cid rewriting
+     * @return string|null Purified HTML body or null when missing
      */
-    private static function preferredBody(array $parts): array
+    private static function preferredBodyHtml(array $parts, string $messageId, array $attachments): ?string
     {
         $html = self::findBodyByMime($parts, 'text/html');
         if ($html !== null) {
-            return ['content' => $html, 'is_html' => true];
+            $html = self::rewriteCidSources((string)$html, $messageId, $attachments);
+            return self::sanitizeHtml($html);
         }
 
         $plain = self::findBodyByMime($parts, 'text/plain');
         if ($plain !== null) {
-            return ['content' => trim($plain), 'is_html' => false];
+            $converted = self::convertTextToHtml((string)$plain);
+            return self::sanitizeHtml($converted);
         }
 
-        return ['content' => null, 'is_html' => false];
+        return null;
     }
 
     /**
@@ -246,5 +247,44 @@ readonly class Message
         $contentId = trim($contentId);
         $contentId = trim($contentId, '<>');
         return strtolower($contentId);
+    }
+
+    /**
+     * Convert plain text to HTML with auto-linked URLs and preserved newlines.
+     *
+     * @param string $text Plain text body
+     * @return string HTML with links and <br> line breaks
+     */
+    private static function convertTextToHtml(string $text): string
+    {
+        $escaped = htmlspecialchars(trim($text), ENT_QUOTES | ENT_SUBSTITUTE);
+
+        if ($escaped === '') {
+            return '';
+        }
+
+        $autolink = new Autolink();
+        $linked = $autolink->convertEmail($autolink->convert($escaped));
+
+        return nl2br($linked, false);
+    }
+
+    /**
+     * Sanitize an HTML snippet using HTMLPurifier (no caching used).
+     *
+     * @param string $html Raw HTML body
+     * @return string Purified HTML safe for rendering
+     */
+    private static function sanitizeHtml(string $html): string
+    {
+        static $purifier = null;
+
+        if ($purifier === null) {
+            $config = HTMLPurifier_Config::createDefault();
+            $config->set('Cache.DefinitionImpl', null);
+            $purifier = new HTMLPurifier($config);
+        }
+
+        return $purifier->purify($html);
     }
 }
