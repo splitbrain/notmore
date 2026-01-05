@@ -47,18 +47,53 @@ ul.thread-messages-list {
     list-style: none;
     padding: 0;
 
-    .message-body {
-        font-family: ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        "Liberation Mono",
-        "Courier New",
-        monospace;
+    article {
+        padding-bottom: 3rem;
     }
 
-    img {
-        max-width: 100%;
+    .message-body {
+        font-family: var(--font-family-mono);
+        margin-bottom: 2rem;
+
+        pre {
+            background-color: transparent;
+            padding: 0;
+            white-space: pre-wrap;
+        }
+
+        blockquote {
+            opacity: 0.8;
+            background-color: transparent;
+            max-height: 5em;
+            overflow: hidden;
+            position: relative;
+
+            &.full {
+                max-height: none;
+                overflow: visible;
+
+                &::after {
+                    height: 1em;
+                    display: block;
+                }
+            }
+
+            &::after {
+                content: "";
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 2.5em;
+                background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(235, 235, 235, 0.9));
+                cursor: pointer;
+            }
+        }
+
+        img {
+            max-width: 100%;
+        }
     }
+
+
 }

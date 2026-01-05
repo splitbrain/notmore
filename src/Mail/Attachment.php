@@ -21,7 +21,7 @@ readonly class Attachment
         string $filename,
         string $contentType,
         string $disposition,
-        string $contentId,
+        ?string $contentId,
         ?int $part = null
 
     ) {

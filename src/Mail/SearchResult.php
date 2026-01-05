@@ -13,6 +13,8 @@ readonly class SearchResult
     public array $tags;
     public int $timestamp;
     public string $date_relative;
+    public int $total;
+    public int $matched;
 
     /**
      * Construct an immutable search result representing a notmuch thread summary.
@@ -23,6 +25,8 @@ readonly class SearchResult
      * @param array $tags Tag list for the thread
      * @param int $timestamp Unix timestamp (seconds)
      * @param string $dateRelative Human readable relative date
+     * @param int $total Total number of messages in the thread
+     * @param int $matched Number of matched messages in the thread
      */
     private function __construct(
         string $id,
@@ -30,7 +34,9 @@ readonly class SearchResult
         ?string $authors,
         array $tags,
         int $timestamp,
-        string $dateRelative
+        string $dateRelative,
+        int $total,
+        int $matched
     )
     {
         $this->id = $id;
@@ -39,6 +45,8 @@ readonly class SearchResult
         $this->tags = $tags;
         $this->timestamp = $timestamp;
         $this->date_relative = $dateRelative;
+        $this->total = $total;
+        $this->matched = $matched;
     }
 
     /**
@@ -55,7 +63,9 @@ readonly class SearchResult
         $tags = $payload['tags'] ?? [];
         $timestamp = (int)($payload['timestamp'] ?? 0);
         $dateRelative = (string)($payload['date_relative'] ?? '');
+        $total = (int)($payload['total'] ?? 0);
+        $matched = (int)($payload['matched'] ?? 0);
 
-        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative);
+        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative, $total, $matched);
     }
 }

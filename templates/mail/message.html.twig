@@ -5,41 +5,30 @@
         {% if message.date_relative|default('') %}
             <br>
             <strong>Date:</strong>
-            <time datetime="{{ message.timestamp|date('c') }}" title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>
+            <time datetime="{{ message.timestamp|date('c') }}"
+                  title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>
         {% endif %}
         {% if message.tags|length %}<br><strong>Tags:</strong> {{ message.tags|join(', ')|e }}{% endif %}
     </p>
 
     <div class="message-body">
-    {% for fragment in message.body_fragments %}
-        {% if fragment.content|trim is not same as('') %}
-            {% set classes = ['message-fragment'] %}
-            {% if fragment.isQuoted %}{% set classes = classes|merge(['message-fragment--quoted']) %}{% endif %}
-            {% if fragment.isSignature %}{% set classes = classes|merge(['message-fragment--signature']) %}{% endif %}
-            {% if fragment.isHidden %}{% set classes = classes|merge(['message-fragment--hidden']) %}{% endif %}
-            <div class="{{ classes|join(' ') }}">
-                {% if message.body_fragments_from_plain %}
-                    {{ message.convertTextToHtml(fragment.content)|raw }}
-                {% else %}
-                    {{ fragment.content|raw }}
-                {% endif %}
-            </div>
-        {% endif %}
-    {% endfor %}
+        {{ message.body|raw }}
     </div>
 
     {% if message.attachments %}
-        <p><strong>Attachments:</strong></p>
-        <ul>
-        {% for attachment in message.attachments %}
-            <li>
-                <a href="/attachment?id={{ message.id|url_encode }}&part={{ attachment.part }}">{{ attachment.filename|e }}</a>
-                (<span>
+        <div class="card">
+            <p><strong>Attachments:</strong></p>
+            <ul>
+                {% for attachment in message.attachments %}
+                    <li>
+                        <a href="/attachment?id={{ message.id|url_encode }}&part={{ attachment.part }}">{{ attachment.filename|e }}</a>
+                        (<span>
                     {{ attachment.content_type|e }},
                     {{ attachment.disposition|e }}
                 </span>)
-            </li>
-        {% endfor %}
-        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
     {% endif %}
 </article>

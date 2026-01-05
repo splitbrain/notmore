@@ -250,23 +250,85 @@ readonly class Message
     }
 
     /**
-     * Convert plain text to HTML with auto-linked URLs and preserved newlines.
+     * Convert plain text to HTML with blockquotes, auto-linked URLs, and preserved newlines.
      *
      * @param string $text Plain text body
-     * @return string HTML with links and <br> line breaks
+     * @return string HTML with links, blockquotes, and <br> line breaks
      */
     private static function convertTextToHtml(string $text): string
     {
-        $escaped = htmlspecialchars(trim($text), ENT_QUOTES | ENT_SUBSTITUTE);
+        $text = trim($text);
 
-        if ($escaped === '') {
+        if ($text === '') {
             return '';
         }
 
         $autolink = new Autolink();
-        $linked = $autolink->convertEmail($autolink->convert($escaped));
+        $quoted = self::convertQuoteMarkers($text, $autolink);
 
-        return nl2br($linked, false);
+        return nl2br($quoted, false);
+    }
+
+    /**
+     * Convert leading ">" quote markers to nested blockquotes.
+     *
+     * @param string $text Plain text body
+     * @param Autolink $autolink Autolink instance used to transform URLs
+     * @return string HTML with blockquote wrappers and escaped line content
+     */
+    private static function convertQuoteMarkers(string $text, Autolink $autolink): string
+    {
+        $lines = preg_split("/\r\n|\r|\n/", $text);
+        $depth = 0;
+        $buffer = '';
+        $lastIndex = count($lines) - 1;
+
+        foreach ($lines as $index => $line) {
+            [$lineDepth, $content] = self::parseQuotePrefix($line);
+
+            while ($depth > $lineDepth) {
+                $buffer .= '</blockquote>';
+                $depth--;
+            }
+
+            while ($depth < $lineDepth) {
+                $buffer .= '<blockquote>';
+                $depth++;
+            }
+
+            $escaped = htmlspecialchars($content, ENT_QUOTES | ENT_SUBSTITUTE);
+            $linked = $autolink->convertEmail($autolink->convert($escaped));
+            $buffer .= $linked;
+
+            if ($index !== $lastIndex) {
+                $buffer .= "\n";
+            }
+        }
+
+        while ($depth > 0) {
+            $buffer .= '</blockquote>';
+            $depth--;
+        }
+
+        return $buffer;
+    }
+
+    /**
+     * Determine quote depth for a line and strip the leading markers.
+     *
+     * @param string $line Raw line content
+     * @return array{int,string} Depth count and remaining content
+     */
+    private static function parseQuotePrefix(string $line): array
+    {
+        if (!preg_match('/^((?:\\s*>)+)(.*)$/', $line, $matches)) {
+            return [0, $line];
+        }
+
+        $depth = substr_count(str_replace(' ', '', $matches[1]), '>');
+        $content = ltrim($matches[2]);
+
+        return [$depth, $content];
     }
 
     /**
@@ -282,6 +344,7 @@ readonly class Message
         if ($purifier === null) {
             $config = HTMLPurifier_Config::createDefault();
             $config->set('Cache.DefinitionImpl', null);
+            $config->set('HTML.ForbiddenElements', ['font', 'center', 'marquee', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
             $purifier = new HTMLPurifier($config);
         }
 
