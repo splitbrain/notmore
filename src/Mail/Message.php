@@ -20,38 +20,6 @@ readonly class Message
     public array $children;
 
     /**
-     * Construct an immutable message node with attachments and children.
-     *
-     * @param string $id Message id
-     * @param array $headers Raw headers array from notmuch
-     * @param array $tags Tag list for the message
-     * @param int $timestamp Unix timestamp (seconds)
-     * @param string $dateRelative Human readable relative date
-     * @param string|null $body Purified HTML body content
-     * @param Attachment[] $attachments Collected attachments for this message
-     * @param Message[] $children Child message nodes
-     */
-    private function __construct(
-        string $id,
-        array $headers,
-        array $tags,
-        int $timestamp,
-        string $dateRelative,
-        ?string $body,
-        array $attachments,
-        array $children
-    ) {
-        $this->id = $id;
-        $this->headers = $headers;
-        $this->tags = $tags;
-        $this->timestamp = $timestamp;
-        $this->date_relative = $dateRelative;
-        $this->body = $body;
-        $this->attachments = $attachments;
-        $this->children = $children;
-    }
-
-    /**
      * Build a Message tree from the nested notmuch entry.
      *
      * @param array $entry Typically [messageData, childrenArray]
@@ -59,9 +27,14 @@ readonly class Message
      */
     public static function fromNotmuchEntry(array $entry): ?self
     {
-        $converter = new BodyConverter();
+        if (!isset($entry[0]) || !is_array($entry[0])) {
+            return null;
+        }
 
-        return self::fromNotmuchEntryWithConverter($entry, $converter);
+        $message = $entry[0];
+        $childrenEntries = $entry[1] ?? [];
+
+        return new self($message, $childrenEntries);
     }
 
     /**
@@ -72,10 +45,9 @@ readonly class Message
      */
     public static function listFromNotmuchThread(array $entries): array
     {
-        $converter = new BodyConverter();
         $messages = [];
         foreach ($entries as $entry) {
-            $message = self::fromNotmuchEntryWithConverter($entry, $converter);
+            $message = self::fromNotmuchEntry($entry);
             if ($message !== null) {
                 $messages[] = $message;
             }
@@ -85,12 +57,108 @@ readonly class Message
     }
 
     /**
+     * Construct an immutable message node with attachments and children.
+     *
+     * @param array $message Raw notmuch message payload
+     * @param array $childrenEntries Nested children entries
+     */
+    private function __construct(array $message, array $childrenEntries)
+    {
+        $this->id = (string)($message['id'] ?? '');
+        $this->headers = (array)($message['headers'] ?? []);
+        $this->tags = (array)($message['tags'] ?? []);
+        $this->timestamp = (int)($message['timestamp'] ?? 0);
+        $this->date_relative = (string)($message['date_relative'] ?? '');
+
+        $parts = (array)($message['body'] ?? []);
+        $this->attachments = $this->collectAttachments($parts);
+        $this->body = $this->normalizeBody($parts);
+
+        $children = [];
+        foreach ($childrenEntries as $childEntry) {
+            $child = self::fromNotmuchEntry($childEntry);
+            if ($child !== null) {
+                $children[] = $child;
+            }
+        }
+        $this->children = $children;
+    }
+
+    /**
+     * Pick and normalize the preferred body using provided helpers.
+     *
+     * @param array[] $parts Body parts array from notmuch
+     * @return string|null Purified HTML body or null when missing
+     */
+    private function normalizeBody(array $parts): ?string
+    {
+        $selection = $this->selectPreferredBody($parts);
+        if ($selection === null) {
+            return null;
+        }
+
+        $converter = new BodyConverter();
+        if ($selection['type'] === 'html') {
+            return $converter->convertHtml((string)$selection['content'], $this->id, $this->attachments);
+        }
+
+        return $converter->convertText((string)$selection['content']);
+    }
+
+    /**
+     * Choose the preferred body content from notmuch parts (HTML first, then plain text).
+     *
+     * @param array[] $parts Body parts array from notmuch
+     * @return array{type:string,content:string}|null Selected body type and content
+     */
+    private function selectPreferredBody(array $parts): ?array
+    {
+        $html = $this->findBodyByMime($parts, 'text/html');
+        if ($html !== null) {
+            return ['type' => 'html', 'content' => $html];
+        }
+
+        $plain = $this->findBodyByMime($parts, 'text/plain');
+        if ($plain !== null) {
+            return ['type' => 'text', 'content' => $plain];
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the first body part matching the given MIME type.
+     *
+     * @param array[] $parts Body parts array from notmuch
+     * @param string $mime MIME type to search for
+     * @return string|null
+     */
+    private function findBodyByMime(array $parts, string $mime): ?string
+    {
+        foreach ($parts as $part) {
+            $contentType = strtolower((string)($part['content-type'] ?? ''));
+            if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
+                return (string)$part['content'];
+            }
+
+            if (isset($part['content']) && is_array($part['content'])) {
+                $found = $this->findBodyByMime($part['content'], $mime);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Collect attachment metadata from body parts (any part with a filename or content-id).
      *
      * @param array[] $parts Body parts array from notmuch
      * @return Attachment[]
      */
-    private static function collectAttachments(array $parts): array
+    private function collectAttachments(array $parts): array
     {
         $attachments = [];
 
@@ -106,124 +174,10 @@ readonly class Message
             }
 
             if (isset($part['content']) && is_array($part['content'])) {
-                $attachments = array_merge($attachments, self::collectAttachments($part['content']));
+                $attachments = array_merge($attachments, $this->collectAttachments($part['content']));
             }
         }
 
         return $attachments;
-    }
-
-    /**
-     * Internal recursive builder that reuses a single converter instance.
-     *
-     * @param array $entry Typically [messageData, childrenArray]
-     * @param BodyConverter $converter Converter used to normalize message bodies
-     * @return Message|null A normalized message node, or null when data is invalid
-     */
-    private static function fromNotmuchEntryWithConverter(array $entry, BodyConverter $converter): ?self
-    {
-        $message = $entry[0];
-        $children = $entry[1] ?? [];
-
-        $attachments = self::collectAttachments($message['body'] ?? []);
-        $body = self::normalizeBody(
-            $message['body'] ?? [],
-            (string)($message['id'] ?? ''),
-            $attachments,
-            $converter
-        );
-
-        $childMessages = [];
-        foreach ($children as $childEntry) {
-            $child = self::fromNotmuchEntryWithConverter($childEntry, $converter);
-            if ($child !== null) {
-                $childMessages[] = $child;
-            }
-        }
-
-        return new self(
-            (string)($message['id'] ?? ''),
-            (array)($message['headers'] ?? []),
-            (array)($message['tags'] ?? []),
-            (int)($message['timestamp'] ?? 0),
-            (string)($message['date_relative'] ?? ''),
-            $body,
-            $attachments,
-            $childMessages
-        );
-    }
-
-    /**
-     * Pick and normalize the preferred body using provided helpers.
-     *
-     * @param array[] $parts Body parts array from notmuch
-     * @param string $messageId Message id
-     * @param Attachment[] $attachments Collected attachments
-     * @param BodyConverter $converter Converter used to normalize message bodies
-     * @return string|null Purified HTML body or null when missing
-     */
-    private static function normalizeBody(
-        array $parts,
-        string $messageId,
-        array $attachments,
-        BodyConverter $converter
-    ): ?string {
-        $selection = self::selectPreferredBody($parts);
-        if ($selection === null) {
-            return null;
-        }
-
-        if ($selection['type'] === 'html') {
-            return $converter->convertHtml((string)$selection['content'], $messageId, $attachments);
-        }
-
-        return $converter->convertText((string)$selection['content']);
-    }
-
-    /**
-     * Choose the preferred body content from notmuch parts (HTML first, then plain text).
-     *
-     * @param array[] $parts Body parts array from notmuch
-     * @return array{type:string,content:string}|null Selected body type and content
-     */
-    private static function selectPreferredBody(array $parts): ?array
-    {
-        $html = self::findBodyByMime($parts, 'text/html');
-        if ($html !== null) {
-            return ['type' => 'html', 'content' => $html];
-        }
-
-        $plain = self::findBodyByMime($parts, 'text/plain');
-        if ($plain !== null) {
-            return ['type' => 'text', 'content' => $plain];
-        }
-
-        return null;
-    }
-
-    /**
-     * Find the first body part matching the given MIME type.
-     *
-     * @param array[] $parts Body parts array from notmuch
-     * @param string $mime MIME type to search for
-     * @return string|null
-     */
-    private static function findBodyByMime(array $parts, string $mime): ?string
-    {
-        foreach ($parts as $part) {
-            $contentType = strtolower((string)($part['content-type'] ?? ''));
-            if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
-                return (string)$part['content'];
-            }
-
-            if (isset($part['content']) && is_array($part['content'])) {
-                $found = self::findBodyByMime($part['content'], $mime);
-                if ($found !== null) {
-                    return $found;
-                }
-            }
-        }
-
-        return null;
     }
 }
