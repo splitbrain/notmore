@@ -2,10 +2,6 @@
 
 namespace splitbrain\notmore\Mail;
 
-use Asika\Autolink\Autolink;
-use HTMLPurifier;
-use HTMLPurifier_Config;
-
 /**
  * Normalized message representation built from notmuch show output.
  */
@@ -63,34 +59,9 @@ readonly class Message
      */
     public static function fromNotmuchEntry(array $entry): ?self
     {
-        $message = $entry[0];
-        $children = $entry[1] ?? [];
+        $converter = new BodyConverter();
 
-        $attachments = self::collectAttachments($message['body'] ?? []);
-        $body = self::preferredBodyHtml(
-            $message['body'] ?? [],
-            (string)($message['id'] ?? ''),
-            $attachments
-        );
-
-        $childMessages = [];
-        foreach ($children as $childEntry) {
-            $child = self::fromNotmuchEntry($childEntry);
-            if ($child !== null) {
-                $childMessages[] = $child;
-            }
-        }
-
-        return new self(
-            (string)($message['id'] ?? ''),
-            (array)($message['headers'] ?? []),
-            (array)($message['tags'] ?? []),
-            (int)($message['timestamp'] ?? 0),
-            (string)($message['date_relative'] ?? ''),
-            $body,
-            $attachments,
-            $childMessages
-        );
+        return self::fromNotmuchEntryWithConverter($entry, $converter);
     }
 
     /**
@@ -101,66 +72,16 @@ readonly class Message
      */
     public static function listFromNotmuchThread(array $entries): array
     {
+        $converter = new BodyConverter();
         $messages = [];
         foreach ($entries as $entry) {
-            $message = self::fromNotmuchEntry($entry);
+            $message = self::fromNotmuchEntryWithConverter($entry, $converter);
             if ($message !== null) {
                 $messages[] = $message;
             }
         }
 
         return $messages;
-    }
-
-    /**
-     * Pick a preferred body part and return purified HTML (HTML preferred, then converted text).
-     *
-     * @param array $parts Body parts array from notmuch
-     * @param string $messageId Message id
-     * @param Attachment[] $attachments Collected attachments for cid rewriting
-     * @return string|null Purified HTML body or null when missing
-     */
-    private static function preferredBodyHtml(array $parts, string $messageId, array $attachments): ?string
-    {
-        $html = self::findBodyByMime($parts, 'text/html');
-        if ($html !== null) {
-            $html = self::rewriteCidSources((string)$html, $messageId, $attachments);
-            return self::sanitizeHtml($html);
-        }
-
-        $plain = self::findBodyByMime($parts, 'text/plain');
-        if ($plain !== null) {
-            $converted = self::convertTextToHtml((string)$plain);
-            return self::sanitizeHtml($converted);
-        }
-
-        return null;
-    }
-
-    /**
-     * Find the first body part matching the given MIME type.
-     *
-     * @param array[] $parts Body parts array from notmuch
-     * @param string $mime MIME type to search for
-     * @return string|null
-     */
-    private static function findBodyByMime(array $parts, string $mime): ?string
-    {
-        foreach ($parts as $part) {
-            $contentType = strtolower((string)($part['content-type'] ?? ''));
-            if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
-                return (string)$part['content'];
-            }
-
-            if (isset($part['content']) && is_array($part['content'])) {
-                $found = self::findBodyByMime($part['content'], $mime);
-                if ($found !== null) {
-                    return $found;
-                }
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -193,161 +114,116 @@ readonly class Message
     }
 
     /**
-     * Replace cid: URLs in HTML bodies with links to the attachment endpoint.
+     * Internal recursive builder that reuses a single converter instance.
      *
-     * @param string $html Raw HTML body
-     * @param string $messageId Message id (used to build attachment URLs)
-     * @param Attachment[] $attachments Attachments collected for the message
-     * @return string HTML with cid: links rewritten when possible
+     * @param array $entry Typically [messageData, childrenArray]
+     * @param BodyConverter $converter Converter used to normalize message bodies
+     * @return Message|null A normalized message node, or null when data is invalid
      */
-    private static function rewriteCidSources(string $html, string $messageId, array $attachments): string
+    private static function fromNotmuchEntryWithConverter(array $entry, BodyConverter $converter): ?self
     {
-        if ($messageId === '') {
-            return $html;
-        }
+        $message = $entry[0];
+        $children = $entry[1] ?? [];
 
-        $cidToPart = [];
-        foreach ($attachments as $attachment) {
-            if (!isset($attachment->content_id, $attachment->part)) {
-                continue;
+        $attachments = self::collectAttachments($message['body'] ?? []);
+        $body = self::normalizeBody(
+            $message['body'] ?? [],
+            (string)($message['id'] ?? ''),
+            $attachments,
+            $converter
+        );
+
+        $childMessages = [];
+        foreach ($children as $childEntry) {
+            $child = self::fromNotmuchEntryWithConverter($childEntry, $converter);
+            if ($child !== null) {
+                $childMessages[] = $child;
             }
-            $cid = self::normalizeContentId((string)$attachment->content_id);
-            if ($cid !== '') {
-                $cidToPart[$cid] = $attachment->part;
-            }
         }
 
-        if ($cidToPart === []) {
-            return $html;
-        }
-
-        return (string)preg_replace_callback(
-            '/\b(src|href)=(["\'])cid:([^"\']+)\2/i',
-            function (array $matches) use ($cidToPart, $messageId): string {
-                $cid = self::normalizeContentId($matches[3]);
-                if ($cid === '' || !isset($cidToPart[$cid])) {
-                    return $matches[0];
-                }
-
-                $url = '/attachment?id=' . rawurlencode($messageId) . '&part=' . $cidToPart[$cid];
-                return $matches[1] . '=' . $matches[2] . $url . $matches[2];
-            },
-            $html
+        return new self(
+            (string)($message['id'] ?? ''),
+            (array)($message['headers'] ?? []),
+            (array)($message['tags'] ?? []),
+            (int)($message['timestamp'] ?? 0),
+            (string)($message['date_relative'] ?? ''),
+            $body,
+            $attachments,
+            $childMessages
         );
     }
 
     /**
-     * Normalize a content-id for matching (trim angle brackets, lower-case).
+     * Pick and normalize the preferred body using provided helpers.
      *
-     * @param string $contentId Raw content-id
-     * @return string Normalized content-id
+     * @param array[] $parts Body parts array from notmuch
+     * @param string $messageId Message id
+     * @param Attachment[] $attachments Collected attachments
+     * @param BodyConverter $converter Converter used to normalize message bodies
+     * @return string|null Purified HTML body or null when missing
      */
-    private static function normalizeContentId(string $contentId): string
-    {
-        $contentId = trim($contentId);
-        $contentId = trim($contentId, '<>');
-        return strtolower($contentId);
-    }
-
-    /**
-     * Convert plain text to HTML with blockquotes, auto-linked URLs, and preserved newlines.
-     *
-     * @param string $text Plain text body
-     * @return string HTML with links, blockquotes, and <br> line breaks
-     */
-    private static function convertTextToHtml(string $text): string
-    {
-        $text = trim($text);
-
-        if ($text === '') {
-            return '';
+    private static function normalizeBody(
+        array $parts,
+        string $messageId,
+        array $attachments,
+        BodyConverter $converter
+    ): ?string {
+        $selection = self::selectPreferredBody($parts);
+        if ($selection === null) {
+            return null;
         }
 
-        $autolink = new Autolink();
-        $quoted = self::convertQuoteMarkers($text, $autolink);
+        if ($selection['type'] === 'html') {
+            return $converter->convertHtml((string)$selection['content'], $messageId, $attachments);
+        }
 
-        return nl2br($quoted, false);
+        return $converter->convertText((string)$selection['content']);
     }
 
     /**
-     * Convert leading ">" quote markers to nested blockquotes.
+     * Choose the preferred body content from notmuch parts (HTML first, then plain text).
      *
-     * @param string $text Plain text body
-     * @param Autolink $autolink Autolink instance used to transform URLs
-     * @return string HTML with blockquote wrappers and escaped line content
+     * @param array[] $parts Body parts array from notmuch
+     * @return array{type:string,content:string}|null Selected body type and content
      */
-    private static function convertQuoteMarkers(string $text, Autolink $autolink): string
+    private static function selectPreferredBody(array $parts): ?array
     {
-        $lines = preg_split("/\r\n|\r|\n/", $text);
-        $depth = 0;
-        $buffer = '';
-        $lastIndex = count($lines) - 1;
+        $html = self::findBodyByMime($parts, 'text/html');
+        if ($html !== null) {
+            return ['type' => 'html', 'content' => $html];
+        }
 
-        foreach ($lines as $index => $line) {
-            [$lineDepth, $content] = self::parseQuotePrefix($line);
+        $plain = self::findBodyByMime($parts, 'text/plain');
+        if ($plain !== null) {
+            return ['type' => 'text', 'content' => $plain];
+        }
 
-            while ($depth > $lineDepth) {
-                $buffer .= '</blockquote>';
-                $depth--;
+        return null;
+    }
+
+    /**
+     * Find the first body part matching the given MIME type.
+     *
+     * @param array[] $parts Body parts array from notmuch
+     * @param string $mime MIME type to search for
+     * @return string|null
+     */
+    private static function findBodyByMime(array $parts, string $mime): ?string
+    {
+        foreach ($parts as $part) {
+            $contentType = strtolower((string)($part['content-type'] ?? ''));
+            if ($contentType !== '' && str_starts_with($contentType, $mime) && isset($part['content'])) {
+                return (string)$part['content'];
             }
 
-            while ($depth < $lineDepth) {
-                $buffer .= '<blockquote>';
-                $depth++;
-            }
-
-            $escaped = htmlspecialchars($content, ENT_QUOTES | ENT_SUBSTITUTE);
-            $linked = $autolink->convertEmail($autolink->convert($escaped));
-            $buffer .= $linked;
-
-            if ($index !== $lastIndex) {
-                $buffer .= "\n";
+            if (isset($part['content']) && is_array($part['content'])) {
+                $found = self::findBodyByMime($part['content'], $mime);
+                if ($found !== null) {
+                    return $found;
+                }
             }
         }
 
-        while ($depth > 0) {
-            $buffer .= '</blockquote>';
-            $depth--;
-        }
-
-        return $buffer;
-    }
-
-    /**
-     * Determine quote depth for a line and strip the leading markers.
-     *
-     * @param string $line Raw line content
-     * @return array{int,string} Depth count and remaining content
-     */
-    private static function parseQuotePrefix(string $line): array
-    {
-        if (!preg_match('/^((?:\\s*>)+)(.*)$/', $line, $matches)) {
-            return [0, $line];
-        }
-
-        $depth = substr_count(str_replace(' ', '', $matches[1]), '>');
-        $content = ltrim($matches[2]);
-
-        return [$depth, $content];
-    }
-
-    /**
-     * Sanitize an HTML snippet using HTMLPurifier (no caching used).
-     *
-     * @param string $html Raw HTML body
-     * @return string Purified HTML safe for rendering
-     */
-    private static function sanitizeHtml(string $html): string
-    {
-        static $purifier = null;
-
-        if ($purifier === null) {
-            $config = HTMLPurifier_Config::createDefault();
-            $config->set('Cache.DefinitionImpl', null);
-            $config->set('HTML.ForbiddenElements', ['font', 'center', 'marquee', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
-            $purifier = new HTMLPurifier($config);
-        }
-
-        return $purifier->purify($html);
+        return null;
     }
 }
