@@ -21,6 +21,7 @@ class BodyConverter
         $config = HTMLPurifier_Config::createDefault();
         $config->set('Cache.DefinitionImpl', null);
         $config->set('HTML.ForbiddenElements', ['font', 'center', 'marquee', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+        $config->set('CSS.ForbiddenProperties', ['font-family', 'font', 'font-size', 'color']);
         $this->purifier = new HTMLPurifier($config);
     }
 

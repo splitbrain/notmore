@@ -37,6 +37,7 @@ ul.search-results-list {
             }
         }
 
+        .meta,
         .content {
             margin-left: 1rem;
         }
