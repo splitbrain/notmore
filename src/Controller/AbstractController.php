@@ -4,6 +4,7 @@ namespace splitbrain\notmore\Controller;
 
 use splitbrain\notmore\App;
 use Twig\Environment;
+use Twig\Extension\DebugExtension;
 use Twig\Loader\FilesystemLoader;
 
 abstract class AbstractController
@@ -43,7 +44,14 @@ abstract class AbstractController
         $this->twig = new Environment($loader, [
             'debug' => (bool)($_ENV['DEBUG'] ?? false),
             'strict_variables' => true,
+            'autoescape' => 'html',
         ]);
+        $this->twig->addExtension(new DebugExtension());
+
+        $this->twig->addGlobal(
+            'isSwap',
+            isset($_SERVER['HTTP_X_SWAP_CALL'])
+        );
 
         return $this->twig;
     }

@@ -1,0 +1,64 @@
+:root {
+    --color-primary: #3399dd; /* brand color */
+}
+
+.container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+
+    main {
+        flex: 1;
+    }
+}
+
+header {
+    form {
+        display: flex;
+        justify-content: end;
+        align-items: center;
+
+        label {
+            flex: 1;
+        }
+    }
+}
+
+ul.search-results-list {
+    list-style: none;
+    padding: 0;
+
+    > li {
+        margin-bottom: 1rem;
+
+        .title {
+            a {
+                font-size: 1.3em;
+            }
+        }
+
+        .content {
+            margin-left: 1rem;
+        }
+    }
+}
+
+ul.thread-messages-list {
+    list-style: none;
+    padding: 0;
+
+    .message-body {
+        font-family: ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        "Courier New",
+        monospace;
+    }
+
+    img {
+        max-width: 100%;
+    }
+}

@@ -1,9 +1,11 @@
-<div>
-    <h2>Thread {{ threadId|default('')|e }}</h2>
+{% extends isSwap ? "fragment.html.twig" : "base.html.twig" %}
 
-    {% if messages is empty %}
-        <p>No messages available.</p>
-    {% else %}
-        {% include 'mail/thread_messages.html.twig' with {'messages': messages} %}
-    {% endif %}
-</div>
+{% block body %}
+    <div class="thread-messages">
+        {% if messages is empty %}
+            <p>No messages available.</p>
+        {% else %}
+            {% include 'mail/thread_messages.html.twig' with {'messages': messages} %}
+        {% endif %}
+    </div>
+{% endblock %}

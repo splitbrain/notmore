@@ -3,9 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}notmore{% endblock %}</title>
+    <title>{% block title %}notmore.{% endblock %}</title>
+    <link rel="stylesheet" href="/chota.css">
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-{% block body %}{% endblock %}
+<div class="container">
+    <header class="row">
+        <h1 class="col">
+            <a href="/">notmore.</a>
+        </h1>
+
+        <form action="/search" method="get" data-swap="main" class="col col-auto">
+            <label>
+                <input type="text" name="query" placeholder="tag:inbox AND date:2024..">
+            </label>
+            <button type="submit">Search</button>
+        </form>
+    </header>
+
+    <main>
+        {% block body %}{% endblock %}
+    </main>
+    <footer class="text-right">
+        <p>notmore by <a href="https://www.splitbrain.org">splitbrain</a></p>
+    </footer>
+</div>
+
+<script src="/swap.js"></script>
 </body>
 </html>

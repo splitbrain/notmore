@@ -1,38 +1,37 @@
-<div class="search-results">
-    <header>
-        <h2>Search: {{ query|e }}</h2>
-        <p class="hint">Showing {{ threads|length }} thread(s){% if offset %} starting at {{ offset }}{% endif %}</p>
-    </header>
+{% extends isSwap ? "fragment.html.twig" : "base.html.twig" %}
 
-    {% if threads is empty %}
-        <p class="muted">No threads matched.</p>
-    {% else %}
-        <ul class="thread-list">
-            {% for thread in threads %}
-                {% set id = thread.id ?? '' %}
-                {% set href = id ? '/thread/' ~ id|url_encode : '#' %}
-                <li class="thread">
-                    <a class="thread-link" data-thread-id="{{ id|e }}" href="{{ href|e }}">{{ (thread.subject ?? '[no subject]')|e }}</a>
-                    {% set authors = thread.authors ?? '' %}
-                    {% set date_relative = thread.date_relative ?? '' %}
-                    {% if authors|trim or date_relative %}
-                        <p class="meta">
-                            {% if authors|trim %}{{ authors|trim|e }}{% endif %}
-                            {% if authors|trim and date_relative %} {% endif %}
-                            {% if date_relative %}
-                                <time datetime="{{ thread.timestamp|date('c') }}" title="{{ thread.timestamp|date('r') }}">{{ date_relative|e }}</time>
-                            {% endif %}
-                        </p>
-                    {% endif %}
-                    {% if thread.tags is defined and thread.tags is iterable %}
-                        <span class="tags">
-                            {% for tag in thread.tags %}
-                                <span class="pill">{{ tag|e }}</span>
+{% block body %}
+    <div class="search-results">
+        {% if threads is empty %}
+            <p class="muted">No threads matched.</p>
+        {% else %}
+            <ul class="search-results-list">
+                {% for thread in threads %}
+                    <li class="thread" data-id="thread-{{ thread.id }}">
+                        <div class="title">
+                            <a href="/thread/{{ thread.id }}"
+                               data-swap="[data-id=thread-{{ thread.id }}] .content"
+                            >{{ thread.subject }}</a>
+
+                            {% for tag in thread.tags|filter( v => v != "attachment") %}
+                                <span class="tag is-small bd-primary">{{ tag|e }}</span>
                             {% endfor %}
-                        </span>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-</div>
+
+                            {% if "attachment" in thread.tags %}
+                                <span title="has attachments">📎</span>
+                            {% endif %}
+                        </div>
+                        <div class="content">
+                            <time datetime="{{ thread.timestamp|date('c') }}"
+                                  title="{{ thread.timestamp|date('r') }}">{{ thread.date_relative|e }}</time>
+                            &middot;
+                            <span>matched {{ thread.matched }} of {{ thread.total }} messages</span>
+                            <br>
+                            <span>{{ thread.authors }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endblock %}

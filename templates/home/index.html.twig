@@ -1,16 +1,8 @@
 {% extends "base.html.twig" %}
 
-{% block title %}notmore{% endblock %}
 
 {% block body %}
-<h1>notmore</h1>
-<p>HTML routing with Twig templates and replaceable fragments.</p>
 
-<form id="search-form" action="/search" method="get">
-    <label>Notmuch query</label>
-    <input type="text" name="query" placeholder="tag:inbox AND date:2024..">
-    <button type="submit">Search</button>
-</form>
+<h2>Welcome to notmore.</h2>
 
-<p>Submit the form to receive the search fragment at <code>/search</code> and follow links to <code>/thread/&lt;id&gt;</code>.</p>
 {% endblock %}
