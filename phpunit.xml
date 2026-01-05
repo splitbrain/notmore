@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" colors="true" executionOrder="depends,defects" beStrictAboutOutputDuringTests="true">
+  <testsuites>
+    <testsuite name="notmore">
+      <directory>tests</directory>
+    </testsuite>
+  </testsuites>
+  <php>
+    <env name="NOTMUCH_CONFIG" value="./data/notmuch-config"/>
+    <env name="NOTMUCH_BIN" value="/usr/bin/notmuch"/>
+    <env name="DEBUG" value="0"/>
+  </php>
+</phpunit>

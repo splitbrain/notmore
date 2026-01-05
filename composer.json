@@ -29,7 +29,8 @@
         "asika/autolink": "^2.2"
     },
     "scripts": {
-        "notmuch": "notmuch --config=./data/notmuch-config"
+        "notmuch": "notmuch --config=./data/notmuch-config",
+        "test": "vendor/bin/phpunit --testdox --display-phpunit-deprecations --display-deprecations"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.5"
