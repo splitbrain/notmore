@@ -3,6 +3,77 @@
 
 {% block body %}
 
-<h2>Welcome to notmore.</h2>
+<h2>Welcome to notmore. notmuch but in your browser.</h2>
+
+<section>
+  <h3>Searching mail</h3>
+  <p>Enter one or more terms; by default they are combined with <strong>AND</strong>. Terms with the same prefix are ORed (for example, <code>tag:inbox unread</code> matches both tags). A lone <code>*</code> matches everything.</p>
+</section>
+
+<section>
+  <h3>Boolean logic</h3>
+  <ul>
+    <li><code>and</code>, <code>or</code>, <code>not</code>, <code>xor</code>; <code>-term</code> is shorthand for <code>not term</code> (not valid at the start of the query).</li>
+    <li>Parentheses control grouping: <code>(tag:inbox or tag:sent) and -tag:spam</code>.</li>
+    <li>Proximity: <code>term1 NEAR/5 term2</code> (within 5 words, any order) or <code>term1 ADJ/5 term2</code> (within 5 words, same order). Defaults to distance 10.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Common prefixes</h3>
+  <ul>
+    <li><code>from:</code>, <code>to:</code>, <code>subject:</code>, <code>body:</code> — match headers/body; regex allowed via <code>/.../</code> for from/subject.</li>
+    <li><code>attachment:</code> (filename/extension), <code>mimetype:</code> (MIME part type).</li>
+    <li><code>tag:</code> or <code>is:</code> — tags such as <code>inbox</code>, <code>unread</code>; regex allowed.</li>
+    <li><code>id:</code>/<code>mid:</code> — message-id without angle brackets; regex allowed.</li>
+    <li><code>thread:</code> — thread id (from search results) or <code>thread:{<em>query</em>}</code> to match threads containing messages matching a nested query.</li>
+    <li><code>path:</code> — maildir path relative to the root; append <code>/**</code> for recursive matches; regex allowed.</li>
+    <li><code>folder:</code> — maildir/MH folder name; regex allowed.</li>
+    <li><code>date:</code> — ranges or single expressions, for example <code>date:2023-01..2023-02</code> or <code>date:yesterday</code>.</li>
+    <li><code>lastmod:</code> — database revision range, e.g. <code>lastmod:100..</code>.</li>
+    <li><code>query:</code> — saved named queries from configuration.</li>
+    <li><code>property:</code> — message property key/value, e.g. <code>property:foo=bar</code>.</li>
+    <li><code>sexp:</code> — S-expression subquery.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Stemming, wildcards, phrases</h3>
+  <ul>
+    <li>Words are stemmed in English (detail/details/detailed match); capitalize to disable stemming (<code>John</code> vs <code>johnson</code>) or use quoted phrases.</li>
+    <li>Quoted phrases stay in order and are not stemmed: <code>\"project update\"</code>.</li>
+    <li>Wildcard: trailing <code>*</code> expands, e.g. <code>migrat*</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Dates and times</h3>
+  <ul>
+    <li>Ranges: <code>date:&lt;since&gt;..&lt;until&gt;</code>. Examples: <code>date:2024-01-01..2024-01-31</code>, <code>date:..last week</code>, <code>date:today..</code>.</li>
+    <li>Single expression shorthand: <code>date:monday</code> equals <code>date:monday..monday</code>.</li>
+    <li>Absolute times: <code>HH:MM</code>, <code>HH:MM:SS</code>, <code>5pm</code>, <code>noon</code>, <code>midnight</code>; time zones allowed (<code>+02:00</code>).</li>
+    <li>Absolute dates: <code>YYYY-MM-DD</code>, <code>DD-MM-YYYY</code>, <code>M/D/YYYY</code>, <code>Aug 3</code>, <code>Wed</code>, etc.</li>
+    <li>Relative parts accumulate: <code>2 weeks</code>, <code>last month</code>, <code>1h30m</code>. Combine with absolute: <code>2024-01-01 2d</code>.</li>
+    <li>Legacy timestamp ranges: <code>date:@1704067200..@1706745600</code> (seconds since epoch).</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Quoting tips</h3>
+  <ul>
+    <li>Quote spaces or special characters: <code>tag:\"in progress\"</code>, <code>folder:\"/^.*/(Junk|Spam)$/\"</code>.</li>
+    <li>Escape quotes inside queries by doubling: <code>tag:\"\"\"needs-review\"\"\"</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Example queries</h3>
+  <ul>
+    <li><code>tag:inbox and date:last week</code> — inbox mail from last week.</li>
+    <li><code>from:\"/bob@.*example.com/\" and subject:\"status\"</code> — regex sender and subject phrase.</li>
+    <li><code>attachment:pdf and -tag:spam</code> — messages with PDF attachments excluding spam.</li>
+    <li><code>thread:\"{from:mallory}\" and thread:\"{subject:crypto}\"</code> — threads containing both conditions.</li>
+  </ul>
+</section>
 
 {% endblock %}

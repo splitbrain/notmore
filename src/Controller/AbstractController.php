@@ -40,7 +40,10 @@ abstract class AbstractController
             return $this->twig;
         }
 
-        $loader = new FilesystemLoader(__DIR__ . '/../../templates');
+        $loader = new FilesystemLoader([
+            __DIR__ . '/../../templates',
+            __DIR__ . '/../../public',
+        ]);
         $this->twig = new Environment($loader, [
             'debug' => (bool)($_ENV['DEBUG'] ?? false),
             'strict_variables' => true,

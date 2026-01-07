@@ -13,6 +13,15 @@
 }
 
 header {
+    a.brand {
+        svg {
+            height: 4rem;
+            width: auto;
+            fill: var(--color-primary);
+            margin: 0.25rem;
+        }
+    }
+
     form {
         display: flex;
         justify-content: end;
