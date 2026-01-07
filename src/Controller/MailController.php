@@ -81,7 +81,7 @@ class MailController extends AbstractController
         }
 
         // Always enforce an id: query to avoid arbitrary notmuch queries
-        $query = 'id:' . ltrim($messageId, 'id:');
+        $query = str_starts_with($messageId, 'id:') ? $messageId : 'id:' . $messageId;
         $client = new ShowClient($this->app);
 
         $metadata = $client->showPartMetadata($query, $part);

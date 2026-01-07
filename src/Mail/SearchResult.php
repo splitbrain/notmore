@@ -39,7 +39,10 @@ readonly class SearchResult
         $this->matched = (int)($payload['matched'] ?? 0);
 
         $matches = explode(' ', (string)($payload['query'][0] ?? ''));
-        $this->matches = array_map(fn ($match) => ltrim((string)$match, 'id:'), $matches);
+        $this->matches = array_map(
+            fn ($match): string => str_starts_with($match, 'id:') ? substr($match, 3) : $match,
+            $matches
+        );
     }
 
     /**
