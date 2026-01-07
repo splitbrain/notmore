@@ -1,15 +1,11 @@
-<article>
-    <h3>{{ message.headers.Subject|default('[no subject]')|e }}</h3>
-    <p>
-        <strong>From:</strong> {{ message.headers.From|default('')|e }}
-        {% if message.date_relative|default('') %}
-            <br>
-            <strong>Date:</strong>
-            <time datetime="{{ message.timestamp|date('c') }}"
-                  title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>
-        {% endif %}
-        {% if message.tags|length %}<br><strong>Tags:</strong> {{ message.tags|join(', ')|e }}{% endif %}
-    </p>
+<details id="message-{{ message.id }}">
+    <summary>
+        <strong>From:</strong> {{ message.headers.From }}
+        &middot;
+        <time datetime="{{ message.timestamp|date('c') }}"
+              title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>
+    </summary>
+    <h4>{{ message.headers.Subject|default('[no subject]') }}</h4>
 
     <div class="message-body">
         {{ message.body|raw }}
@@ -31,4 +27,4 @@
             </ul>
         </div>
     {% endif %}
-</article>
+</details>

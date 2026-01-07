@@ -24,6 +24,10 @@ header {
     }
 }
 
+svg.swap-spinner {
+    fill: var(--color-primary);
+}
+
 ul.search-results-list {
     list-style: none;
     padding: 0;
@@ -48,9 +52,18 @@ ul.thread-messages-list {
     list-style: none;
     padding: 0;
 
-    article {
-        padding-bottom: 3rem;
+    details {
+        margin: 0.5rem 0;
+
+        summary {
+            cursor: pointer;
+
+            &::marker {
+                color: var(--color-primary);
+            }
+        }
     }
+
 
     .message-body {
         font-family: var(--font-family-mono);
@@ -95,6 +108,4 @@ ul.thread-messages-list {
             max-width: 100%;
         }
     }
-
-
 }
