@@ -1,0 +1,18 @@
+# .notmuch-config template for containerized runs
+[database]
+mail_root=/mail
+path=/notmuch
+
+
+[user]
+name=${NOTMUCH_NAME}
+primary_email=${NOTMUCH_PRIMARY_EMAIL}
+other_email=${NOTMUCH_OTHER_EMAILS}
+
+[new]
+tags=unread;inbox
+
+[search]
+
+[maildir]
+synchronize_flags=true
