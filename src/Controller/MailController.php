@@ -16,8 +16,6 @@ class MailController extends AbstractController
      *
      * @param array $data expects:
      *  - query: string, required; notmuch search expression
-     *  - limit: int >= 0, optional, defaults to 50
-     *  - offset: int >= 0, optional, defaults to 0
      */
     public function search(array $data): string
     {
@@ -26,12 +24,7 @@ class MailController extends AbstractController
             throw new HttpException('Missing search query', 400);
         }
 
-        $limit = (int)($data['limit'] ?? 50);
-        $offset = (int)($data['offset'] ?? 0);
-
         $client = new SearchClient($this->app);
-        $client->setLimit($limit);
-        $client->setOffset($offset);
 
         $threads = $client->search($query);
         $threads = array_map([SearchResult::class, 'fromNotmuch'], $threads);
@@ -39,7 +32,6 @@ class MailController extends AbstractController
         return $this->render('mail/search.html.twig', [
             'query' => $query,
             'threads' => $threads,
-            'offset' => $offset,
         ]);
     }
 
