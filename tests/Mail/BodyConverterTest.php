@@ -68,4 +68,34 @@ HTML;
         $converter = new BodyConverter();
         $this->assertSame('', $converter->convertText('   '));
     }
+
+    public function testConvertTextEscapesHtmlContent(): void
+    {
+        $converter = new BodyConverter();
+
+        $text = "<script>alert(1)</script>\n<span style=\"color:red\">safe</span>";
+        $result = $converter->convertText($text);
+
+        $this->assertStringNotContainsString('<script', $result);
+        $this->assertStringNotContainsString('<span style', $result);
+        $this->assertStringContainsString('&lt;span style="color:red"&gt;safe&lt;/span&gt;', $result);
+    }
+
+    public function testConvertHtmlWithoutMessageIdSkipsCidRewrite(): void
+    {
+        $converter = new BodyConverter();
+        $attachments = [
+            Attachment::fromNotmuchPart([
+                'content-id' => '<CID-1>',
+                'id' => 1,
+            ]),
+        ];
+
+        $html = '<h1>Title</h1><img src="cid:cid-1">';
+        $result = $converter->convertHtml($html, '', $attachments);
+
+        $this->assertStringNotContainsString('/attachment?', $result);
+        $this->assertStringNotContainsString('<h1', $result);
+        $this->assertStringContainsString('Title', $result);
+    }
 }

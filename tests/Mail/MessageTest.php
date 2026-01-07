@@ -77,4 +77,59 @@ class MessageTest extends TestCase
         $this->assertCount(1, $messages);
         $this->assertSame('msg-valid', $messages[0]->id);
     }
+
+    public function testNormalizeBodyPrefersPlainTextWhenNoHtml(): void
+    {
+        $entry = [
+            [
+                'id' => 'msg-text',
+                'body' => [
+                    ['content-type' => 'text/plain', 'content' => 'hello'],
+                ],
+            ],
+            [],
+        ];
+
+        $message = Message::fromNotmuchEntry($entry);
+
+        $this->assertNotNull($message);
+        $this->assertSame('hello', $message->body);
+    }
+
+    public function testNormalizeBodyReturnsNullWhenMissing(): void
+    {
+        $entry = [
+            [
+                'id' => 'msg-nobody',
+                'body' => [],
+            ],
+            [],
+        ];
+
+        $message = Message::fromNotmuchEntry($entry);
+
+        $this->assertNotNull($message);
+        $this->assertNull($message->body);
+    }
+
+    public function testCollectAttachmentsIncludesContentIdOnlyAndNullPart(): void
+    {
+        $entry = [
+            [
+                'id' => 'msg-attach',
+                'body' => [
+                    ['content-type' => 'image/png', 'content-id' => '<IMGID>'],
+                    ['content-type' => 'text/plain', 'content' => 'content'],
+                ],
+            ],
+            [],
+        ];
+
+        $message = Message::fromNotmuchEntry($entry);
+
+        $this->assertNotNull($message);
+        $this->assertCount(1, $message->attachments);
+        $this->assertSame('<IMGID>', $message->attachments[0]->content_id);
+        $this->assertNull($message->attachments[0]->part);
+    }
 }

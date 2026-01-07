@@ -24,4 +24,19 @@ class AttachmentTest extends TestCase
         $this->assertSame('<CID-123>', $attachment->content_id);
         $this->assertSame(5, $attachment->part);
     }
+
+    public function testFromNotmuchPartUsesDefaultsAndMetadataId(): void
+    {
+        $metadata = [
+            'id' => 9,
+            'filename' => 'file.txt',
+        ];
+
+        $attachment = Attachment::fromNotmuchPart($metadata);
+
+        $this->assertSame('application/octet-stream', $attachment->content_type);
+        $this->assertSame('attachment', $attachment->disposition);
+        $this->assertSame(9, $attachment->part);
+        $this->assertNull($attachment->content_id);
+    }
 }

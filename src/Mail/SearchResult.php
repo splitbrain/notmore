@@ -8,7 +8,7 @@ namespace splitbrain\notmore\Mail;
 readonly class SearchResult
 {
     public string $id;
-    public ?string $subject;
+    public string $subject;
     public ?string $authors;
     public array $tags;
     public int $timestamp;
@@ -26,7 +26,7 @@ readonly class SearchResult
     {
         $this->id = (string)($payload['thread'] ?? '');
 
-        $subject = $payload['subject'] ?? null;
+        $subject = $payload['subject'] ?? '[No Subject]';
         $this->subject = $subject !== null ? (string)$subject : null;
 
         $authors = $payload['authors'] ?? null;

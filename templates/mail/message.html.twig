@@ -5,7 +5,7 @@
         <time datetime="{{ message.timestamp|date('c') }}"
               title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>
     </summary>
-    <h4>{{ message.headers.Subject|default('[no subject]') }}</h4>
+    <h4>{{ message.headers.Subject }}</h4>
 
     <div class="message-body">
         {{ message.body|raw }}

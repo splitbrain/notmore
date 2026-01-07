@@ -54,7 +54,7 @@ class ErrorLogLogger extends AbstractLogger
             $message = date('c') . ' ' . $message . "\n";
             file_put_contents("php://stderr", $message);
         } else {
-            error_log("[$level] $message");
+            error_log($message);
         }
     }
 
