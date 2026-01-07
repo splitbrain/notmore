@@ -14,6 +14,9 @@ class AppRouter extends Router
     {
         parent::__construct();
         $this->alto->addMatchTypes(['t' => '[A-Za-z0-9._+\\-]+']);
+
+        $this->app = new App();
+        $this->app->setLogger(new ErrorLogLogger($this->isDev() ? 'debug' : 'warning'));
     }
 
     protected function registerRoutes(): void
@@ -31,8 +34,6 @@ class AppRouter extends Router
 
     protected function onMatch(array $match): void
     {
-        $this->app ??= new App(new ErrorLogLogger($this->isDev() ? 'debug' : 'warning'));
-
         [$controllerClass, $method] = $match['target'];
         $controller = new $controllerClass($this->app);
         if (!$controller instanceof AbstractController) {
@@ -57,9 +58,7 @@ class AppRouter extends Router
             $code = $e->getCode();
         }
 
-        if ($this->app) {
-            $this->app->log()->critical($e->getMessage(), ['exception' => $e]);
-        }
+        $this->app->log()->critical($e->getMessage(), ['exception' => $e]);
 
         header('Content-Type: text/html; charset=utf-8', true, $code);
         echo '<html lang="en"><head><title>Error ' . $code . '</title></head><body>';
