@@ -65,6 +65,7 @@ class MailController extends AbstractController
         return $this->render('mail/thread.html.twig', [
             'threadId' => $thread,
             'messages' => $messages,
+            'matches' => explode(' ', (string)($data['m'] ?? '')),
         ]);
     }
 

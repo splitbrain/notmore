@@ -15,6 +15,7 @@ readonly class SearchResult
     public string $date_relative;
     public int $total;
     public int $matched;
+    public array $matches;
 
     /**
      * Construct an immutable search result representing a notmuch thread summary.
@@ -27,6 +28,7 @@ readonly class SearchResult
      * @param string $dateRelative Human readable relative date
      * @param int $total Total number of messages in the thread
      * @param int $matched Number of matched messages in the thread
+     * @param array $matches List of matched message ids in the thread
      */
     private function __construct(
         string $id,
@@ -36,7 +38,8 @@ readonly class SearchResult
         int $timestamp,
         string $dateRelative,
         int $total,
-        int $matched
+        int $matched,
+        array $matches,
     )
     {
         $this->id = $id;
@@ -47,6 +50,7 @@ readonly class SearchResult
         $this->date_relative = $dateRelative;
         $this->total = $total;
         $this->matched = $matched;
+        $this->matches = $matches;
     }
 
     /**
@@ -65,7 +69,9 @@ readonly class SearchResult
         $dateRelative = (string)($payload['date_relative'] ?? '');
         $total = (int)($payload['total'] ?? 0);
         $matched = (int)($payload['matched'] ?? 0);
+        $matches = explode(' ', $payload['query'][0] ?? '');
+        $matches = array_map(fn ($m) => ltrim($m, 'id:'), $matches);
 
-        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative, $total, $matched);
+        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative, $total, $matched, $matches);
     }
 }

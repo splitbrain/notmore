@@ -1,6 +1,6 @@
-<details id="message-{{ message.id }}">
+<details id="message-{{ message.id }}" class="{{ message.id in matches ? 'matched' : '' }}">
     <summary>
-        <strong>From:</strong> {{ message.headers.From }}
+        {{ message.headers.From }}
         &middot;
         <time datetime="{{ message.timestamp|date('c') }}"
               title="{{ message.timestamp|date('r') }}">{{ message.date_relative|e }}</time>

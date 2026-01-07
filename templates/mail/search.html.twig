@@ -9,7 +9,7 @@
                 {% for thread in threads %}
                     <li class="thread" data-id="thread-{{ thread.id }}">
                         <div class="title">
-                            <a href="/thread/{{ thread.id }}"
+                            <a href="/thread/{{ thread.id }}?m={{ thread.matches|join(' ')|url_encode }}"
                                data-swap="[data-id=thread-{{ thread.id }}] .content"
                                data-swap-opts="toggle"
                             >{{ thread.subject }}</a>

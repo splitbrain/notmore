@@ -59,11 +59,19 @@ ul.thread-messages-list {
             cursor: pointer;
 
             &::marker {
-                color: var(--color-primary);
+                color: var(--color-lightGrey);
             }
         }
     }
 
+    /* highlight matched messages */
+    details.matched summary {
+        font-weight: bold;
+
+        &::marker {
+            color: var(--color-primary);
+        }
+    }
 
     .message-body {
         font-family: var(--font-family-mono);
