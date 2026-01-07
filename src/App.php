@@ -46,14 +46,15 @@ class App
         if (file_exists(__DIR__ . '/../.env')) {
             $dotenv = Dotenv::createUnsafeImmutable(__DIR__ . '/../');
             $dotenv->load();
-            $dotenv->required([
-                'NOTMUCH_CONFIG'
-            ]);
         }
 
         // Check for notmuch config
-        $notmuch_config =  $_ENV['NOTMUCH_CONFIG'];
-        if($notmuch_config[0] !== '/') {
+        if (!isset($_ENV['NOTMUCH_CONFIG']) || trim((string)$_ENV['NOTMUCH_CONFIG']) === '') {
+            throw new \RuntimeException('Environment variable NOTMUCH_CONFIG is not set');
+        }
+
+        $notmuch_config = (string)$_ENV['NOTMUCH_CONFIG'];
+        if ($notmuch_config[0] !== '/') {
             $notmuch_config = __DIR__ . '/../' . $notmuch_config;
         }
         $notmuch_config = realpath($notmuch_config);
