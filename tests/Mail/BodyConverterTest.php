@@ -12,8 +12,19 @@ class BodyConverterTest extends TestCase
     {
         $converter = new BodyConverter();
         $attachments = [
-            new Attachment('image.png', 'image/png', 'inline', '<CID-IMG>', 3),
-            new Attachment('ignored.txt', 'text/plain', 'attachment', null, 4),
+            Attachment::fromNotmuchPart([
+                'filename' => 'image.png',
+                'content-type' => 'image/png',
+                'content-disposition' => 'inline',
+                'content-id' => '<CID-IMG>',
+                'id' => 3,
+            ]),
+            Attachment::fromNotmuchPart([
+                'filename' => 'ignored.txt',
+                'content-type' => 'text/plain',
+                'content-disposition' => 'attachment',
+                'id' => 4,
+            ]),
         ];
 
         $html = '<img src="cid:cid-img"><a href=\'cid:CID-IMG\'>link</a><img src="cid:missing">';

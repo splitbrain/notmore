@@ -164,13 +164,7 @@ readonly class Message
 
         foreach ($parts as $part) {
             if (($part['filename'] ?? '') !== '' || array_key_exists('content-id', $part)) {
-                $attachments[] = new Attachment(
-                    (string)($part['filename'] ?? ''),
-                    (string)($part['content-type'] ?? ''),
-                    (string)($part['content-disposition'] ?? ''),
-                    $part['content-id'] ?? null,
-                    isset($part['id']) ? (int)$part['id'] : null
-                );
+                $attachments[] = Attachment::fromNotmuchPart($part);
             }
 
             if (isset($part['content']) && is_array($part['content'])) {

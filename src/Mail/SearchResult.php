@@ -20,37 +20,26 @@ readonly class SearchResult
     /**
      * Construct an immutable search result representing a notmuch thread summary.
      *
-     * @param string $id notmuch thread id
-     * @param string|null $subject Thread subject (if present in the search row)
-     * @param string|null $authors Authors string provided by notmuch
-     * @param array $tags Tag list for the thread
-     * @param int $timestamp Unix timestamp (seconds)
-     * @param string $dateRelative Human readable relative date
-     * @param int $total Total number of messages in the thread
-     * @param int $matched Number of matched messages in the thread
-     * @param array $matches List of matched message ids in the thread
+     * @param array $payload Raw notmuch search row (single thread entry)
      */
-    private function __construct(
-        string $id,
-        ?string $subject,
-        ?string $authors,
-        array $tags,
-        int $timestamp,
-        string $dateRelative,
-        int $total,
-        int $matched,
-        array $matches,
-    )
+    private function __construct(array $payload)
     {
-        $this->id = $id;
-        $this->subject = $subject;
-        $this->authors = $authors;
-        $this->tags = $tags;
-        $this->timestamp = $timestamp;
-        $this->date_relative = $dateRelative;
-        $this->total = $total;
-        $this->matched = $matched;
-        $this->matches = $matches;
+        $this->id = (string)($payload['thread'] ?? '');
+
+        $subject = $payload['subject'] ?? null;
+        $this->subject = $subject !== null ? (string)$subject : null;
+
+        $authors = $payload['authors'] ?? null;
+        $this->authors = $authors !== null ? (string)$authors : null;
+
+        $this->tags = (array)($payload['tags'] ?? []);
+        $this->timestamp = (int)($payload['timestamp'] ?? 0);
+        $this->date_relative = (string)($payload['date_relative'] ?? '');
+        $this->total = (int)($payload['total'] ?? 0);
+        $this->matched = (int)($payload['matched'] ?? 0);
+
+        $matches = explode(' ', (string)($payload['query'][0] ?? ''));
+        $this->matches = array_map(fn ($match) => ltrim((string)$match, 'id:'), $matches);
     }
 
     /**
@@ -61,17 +50,6 @@ readonly class SearchResult
      */
     public static function fromNotmuch(array $payload): self
     {
-        $subject = $payload['subject'] ?? null;
-        $id = (string)($payload['thread'] ?? '');
-        $authors = (string)($payload['authors'] ?? null);
-        $tags = $payload['tags'] ?? [];
-        $timestamp = (int)($payload['timestamp'] ?? 0);
-        $dateRelative = (string)($payload['date_relative'] ?? '');
-        $total = (int)($payload['total'] ?? 0);
-        $matched = (int)($payload['matched'] ?? 0);
-        $matches = explode(' ', $payload['query'][0] ?? '');
-        $matches = array_map(fn ($m) => ltrim($m, 'id:'), $matches);
-
-        return new self($id, $subject, $authors, $tags, $timestamp, $dateRelative, $total, $matched, $matches);
+        return new self($payload);
     }
 }
