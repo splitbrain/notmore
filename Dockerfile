@@ -16,7 +16,7 @@ VOLUME /mail
 VOLUME /notmuch
 
 # Default config path so interactive shells (e.g., docker exec) see NOTMUCH_CONFIG
-ENV NOTMUCH_CONFIG=/app/conf/notmuch-config
+ENV NOTMUCH_CONFIG=/notmuch/notmuch-config
 
 RUN chmod +x /app/docker-entrypoint.sh
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
