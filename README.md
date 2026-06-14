@@ -42,6 +42,13 @@ Bring the container up with:
 docker compose up --build
 ```
 
+## Manual setup
+
+1. `composer install`
+2. `cp .env.example .env` and adjust
+3. Point the web server to the `public/` directory,
+   or run `php -S 127.0.0.1:8000 -t public`
+
 ## License
 
 Copyright 2026 Andreas Gohr
